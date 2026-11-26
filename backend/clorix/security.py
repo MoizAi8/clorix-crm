@@ -36,6 +36,7 @@ class Grant(BaseModel):
     digest: str
     iat: int
     exp: int
+    country: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +60,11 @@ def decode_grant(token: str, key: str) -> Grant:
             algorithms=["HS256"],
             audience=AUDIENCE,
             issuer=ISSUER,
-            options={"require": list(Grant.model_fields)},
+            options={
+                "require": [
+                    name for name, field in Grant.model_fields.items() if field.is_required()
+                ]
+            },
             leeway=2,
         )
         grant = Grant.model_validate(values)

@@ -7,6 +7,7 @@ import { activityKinds,entityLabels,labelFor,leadStatuses,money,recordLabel,type
 import { dateTime,Empty,ErrorNotice,Loading,Title,useLoad } from "@/components/ui/primitives";
 import type { Options,Shared } from "@/components/workspace/contracts";
 import { RecordForm } from "./record-form";
+import { SavedViews } from "@/components/advanced/saved-views";
 import { CsvImport } from "./csv-import";
 
 const copy:Record<Entity,string>={
@@ -18,7 +19,7 @@ const copy:Record<Entity,string>={
   activities:"Log conversations, notes, meetings and emails in one timeline.",
 };
 
-export function RecordList({entity,create,...shared}:{entity:Entity;create:boolean}&Shared) {
+export function RecordList({entity,create,advanced=false,...shared}:{entity:Entity;create:boolean;advanced?:boolean}&Shared) {
   const {workspace,revision,refresh,notify,navigate}=shared;
   const [filters,setFilters]=useState("");
   const [cursors,setCursors]=useState<string[]>([]);
@@ -90,6 +91,7 @@ export function RecordList({entity,create,...shared}:{entity:Entity;create:boole
     </>}/>
     {error&&<ErrorNotice message={error}/>}
     <section className="surface table-panel">
+      {advanced&&entity!=="activities"&&<SavedViews {...shared} entity={entity} filters={filters} apply={next=>{setFilters(next);setCursors([]);}}/>}
       <form className="record-filters" key={filters} onSubmit={apply}>
         <label className="search-field"><span>Search {titles.toLowerCase()}</span><span className="input-icon"><Search size={17}/><input name="q"
           defaultValue={query.get("q")??""} maxLength={100} placeholder={"Search "+titles.toLowerCase()}/></span></label>

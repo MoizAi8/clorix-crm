@@ -8,11 +8,12 @@ import { dateTime,Dialog,Empty,ErrorNotice,Loading,Title,useLoad } from "@/compo
 import type { Detail,Options,Shared } from "@/components/workspace/contracts";
 import { RecordForm,fields } from "./record-form";
 import { ConvertLead } from "./convert-lead";
+import { hasCustomFields,RecordFields } from "@/components/advanced/record-fields";
 import { MoveDeal } from "@/components/pipeline/move-deal";
 
 const relationKey:Partial<Record<Entity,string>>={leads:"lead_id",contacts:"contact_id",companies:"company_id",deals:"deal_id",tasks:"task_id"};
 
-export function RecordDetail({entity,id,...shared}:{entity:Entity;id:string}&Shared) {
+export function RecordDetail({entity,id,advanced=false,...shared}:{entity:Entity;id:string;advanced?:boolean}&Shared) {
   const {workspace,revision,refresh,notify,navigate}=shared;
   const {data,error}=useLoad<Detail>(entity+"/"+id,workspace.id,revision);
   const opts=useLoad<Options>(data&&entity!=="activities"?"options":null,workspace.id,revision);
@@ -89,6 +90,7 @@ export function RecordDetail({entity,id,...shared}:{entity:Entity;id:string}&Sha
           }):<Empty title="No related records yet"/>}
         </section>}
       </div>
+      {advanced&&hasCustomFields(entity)&&<RecordFields {...shared} entity={entity} id={id} archived={Boolean(row.archived_at)}/>}
       {entity==="deals"&&<section className="surface report-card"><div className="card-title"><div><h2>Stage history</h2><p>Recorded transitions and amount snapshots</p></div></div>
         {data.history.length?<ol className="timeline">{data.history.map((event,index)=><li key={event.event_at+"-"+index}>
           <strong>{event.stage_name}</strong><span>{dateTime(event.event_at,workspace.timezone,true)} · {event.actor} · {money(event.amount_minor,workspace.currency)}</span>

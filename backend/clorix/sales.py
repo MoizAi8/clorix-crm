@@ -260,7 +260,7 @@ def _bounded(rows: list[dict], description: str) -> list[dict]:
     return rows
 
 
-def snapshot(conn, tenant) -> dict:
+def snapshot(conn, tenant, *, include_all_health: bool = False) -> dict:
     zone = ZoneInfo(tenant.timezone)
     today = datetime.now(zone).date()
     month = today.replace(day=1)
@@ -467,7 +467,9 @@ def snapshot(conn, tenant) -> dict:
         "settings": configuration,
         "role": tenant.role,
         "leads": sorted(rows, key=lambda row: (-row["score"], str(row["id"])))[:100],
-        "customers": sorted(health, key=lambda row: (row["score"], str(row["id"])))[:100],
+        "customers": sorted(health, key=lambda row: (row["score"], str(row["id"])))[
+            : None if include_all_health else 100
+        ],
         "risks": sorted(risk, key=lambda row: (-row["risk"], str(row["id"])))[:100],
         "source_performance": source,
         "lost_reasons": [{"reason": k, "count": v} for k, v in lost.most_common(10)],

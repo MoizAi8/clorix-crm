@@ -414,3 +414,11 @@ td { overflow-wrap: anywhere; }
   width:100%; white-space:nowrap; padding:4px; font-size:.75rem; text-align:left; margin-top:3px; }
 .calendar-entry:hover { background:#c8e9db; }
 @media(max-width:660px) { .calendar-day { padding:3px; min-height:58px; } }
+
+.saved-views { padding-inline: 16px; }
+.draft-text { background: var(--clorix-mint-wash); border-radius: 10px; margin-block: 14px; padding: 14px; }
+.draft-text p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.audit-id { overflow-wrap: anywhere; }
+.field-options { display: grid; gap: 10px; border: 1px solid var(--clorix-border); border-radius: 8px; }
+.field-options label { display: flex; align-items: center; gap: 8px; }
+.field-options input { width: auto; }

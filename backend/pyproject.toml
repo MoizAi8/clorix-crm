@@ -3,12 +3,14 @@ name = "clorix-engine"
 version = "0.2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "certifi>=2025.1.31",
     "fastapi>=0.135,<1",
     "pydantic>=2.12,<3",
     "psycopg[binary,pool]>=3.3,<4",
     "pyjwt>=2.12,<3",
     "tzdata>=2025.2",
     "reportlab>=4.4,<5",
+    "google-genai>=1.55,<3",
 ]
 
 [dependency-groups]

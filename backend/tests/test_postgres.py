@@ -12,6 +12,11 @@ from clorix.app import create_app
 pytestmark = pytest.mark.postgres
 
 
+class _Connections(tuple):
+    def __repr__(self):
+        return "<isolated PostgreSQL test connections>"
+
+
 @pytest.fixture
 def connections():
     admin = os.getenv("DIRECT_DATABASE_URL")
@@ -22,7 +27,7 @@ def connections():
         fields = conninfo_to_dict(dsn)
         assert fields["dbname"] == "clorix_test"
         assert fields["host"] in {"localhost", "127.0.0.1"}
-    return admin, runtime
+    return _Connections((admin, runtime))
 
 
 def tenant(conn):
@@ -80,7 +85,7 @@ def test_python_login_is_restricted(connections):
 def test_billing_snapshots_payments_pdf_and_tenant_scope(connections):
     import json
     from concurrent.futures import ThreadPoolExecutor
-    from datetime import date, timedelta
+    from datetime import datetime, timedelta, timezone
     from io import BytesIO
 
     from pypdf import PdfReader
@@ -93,7 +98,7 @@ def test_billing_snapshots_payments_pdf_and_tenant_scope(connections):
             "INSERT INTO companies(workspace_id,name) VALUES(%s,'Fictional Billing Company') RETURNING id",
             (workspace,),
         ).fetchone()[0]
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         try:
             with TestClient(create_app(runtime, KEY)) as client:
 
@@ -365,5 +370,269 @@ def test_support_events_health_calendar_and_team_targets(connections):
                 profile = req("/v2/team-performance", "team-performance:read")["members"][0]
                 assert profile["target_minor"] == "120000"
                 assert profile["booked_minor"] == "0"
+        finally:
+            owner.execute('DELETE FROM "user" WHERE id=%s', (actor,))
+
+
+def productivity_call(client, actor, workspace, target, scope, body=None, **grants):
+    import json
+
+    method = "GET" if body is None else "POST"
+    payload = b"" if body is None else json.dumps(body, default=str, sort_keys=True).encode()
+    return client.request(
+        method,
+        "/v2/" + target,
+        content=payload,
+        headers=signed(
+            scope,
+            "/v2/" + target,
+            method,
+            payload,
+            sub=str(actor),
+            workspace=str(workspace),
+            **grants,
+        ),
+    )
+
+
+def test_productivity_persistence_attribution_reports_and_owner_audit(connections):
+    from datetime import datetime, timezone
+
+    admin, runtime = connections
+    with psycopg.connect(admin, autocommit=True) as owner:
+        actor, workspace = tenant(owner)
+        stranger, foreign = tenant(owner)
+        lead = owner.execute("SELECT id FROM leads WHERE workspace_id=%s", (workspace,)).fetchone()[
+            0
+        ]
+        contact = owner.execute(
+            "INSERT INTO contacts(workspace_id,name) VALUES(%s,'Fictional Reviewer') RETURNING id",
+            (workspace,),
+        ).fetchone()[0]
+        today = datetime.now(timezone.utc).date().isoformat()
+        try:
+            with TestClient(create_app(runtime, KEY)) as client:
+
+                def call(target, scope, body=None, subject=actor, space=workspace):
+                    return productivity_call(client, subject, space, target, scope, body)
+
+                def write(target, scope, **fields):
+                    result = call(target, scope, {"key": uuid4(), "version": 0, **fields})
+                    assert result.status_code == 200, result.text
+                    return result.json()["data"]
+
+                campaign = write(
+                    "campaigns",
+                    "campaign:write",
+                    name="Partner outreach",
+                    channel="partner",
+                    status="active",
+                    starts_on=today,
+                    ends_on=today,
+                    budget_minor="15000",
+                    cost_minor="5000",
+                )
+                attribution = {
+                    "key": uuid4(),
+                    "version": 0,
+                    "campaign_id": campaign["id"],
+                    "lead_id": lead,
+                }
+                assert (
+                    call("campaign-attribution", "attribution:write", attribution).status_code
+                    == 200
+                )
+                assert (
+                    call("campaign-attribution", "attribution:write", attribution).status_code
+                    == 200
+                )
+                assert (
+                    call(
+                        "campaign-attribution", "attribution:write", {**attribution, "key": uuid4()}
+                    ).status_code
+                    == 409
+                )
+                rows = call("campaigns", "productivity:read").json()["data"]["campaigns"]
+                assert [(r["leads"], r["converted"], r["cost_per_lead_minor"]) for r in rows] == [
+                    (1, 0, "5000")
+                ]
+                assert (
+                    call("campaigns", "productivity:read", subject=stranger, space=foreign).json()[
+                        "data"
+                    ]["campaigns"]
+                    == []
+                )
+                assert call("campaigns", "productivity:read", subject=stranger).status_code == 404
+
+                template = write(
+                    "email-templates",
+                    "email-template:write",
+                    name="Partner follow-up",
+                    category="sales",
+                    subject="Hello {{first_name}}",
+                    body="Thanks, {{contact_name}}.",
+                )
+                message = {"key": uuid4(), "template_id": template["id"], "contact_id": contact}
+                preview = call("email-draft", "email-draft:render", message)
+                assert preview.json()["data"] == {
+                    "subject": "Hello Fictional",
+                    "body": "Thanks, Fictional Reviewer.",
+                }
+                assert call("email-templates", "productivity:read").json()["data"]["drafts"] == []
+                draft = call("email-draft", "email-draft:render", {**message, "save": True})
+                assert draft.status_code == 200, draft.text
+                assert (
+                    len(call("email-templates", "productivity:read").json()["data"]["drafts"]) == 1
+                )
+
+                field = write(
+                    "custom-fields",
+                    "field-definition:write",
+                    name="Renewal confidence",
+                    entity="leads",
+                    data_type="number",
+                )
+                write(
+                    "record-field",
+                    "field-value:write",
+                    definition_id=field["id"],
+                    entity="leads",
+                    record_id=lead,
+                    value="3.70",
+                )
+                fields = call(
+                    "record-fields", "productivity:read", {"entity": "leads", "record_id": lead}
+                )
+                assert fields.json()["data"][0]["value"] == "3.7"
+                write(
+                    "saved-presets",
+                    "preset:write",
+                    name="Important leads",
+                    kind="view",
+                    specification={"entity": "leads", "query": "isolated"},
+                )
+                assert (
+                    call("saved-presets", "productivity:read").json()["data"][0]["name"]
+                    == "Important leads"
+                )
+                for dimension in (
+                    "lead_source",
+                    "deal_stage",
+                    "booked_month",
+                    "invoice_status",
+                    "payment_month",
+                    "support_status",
+                    "campaign",
+                    "team",
+                    "workflow_outcome",
+                    "customer_health",
+                    "forecast",
+                ):
+                    result = call(
+                        "report-builder",
+                        "productivity:read",
+                        {"dimension": dimension, "starts_on": today, "ends_on": today},
+                    )
+                    assert result.status_code == 200, result.text
+                    assert result.json()["data"]["dimension"] == dimension
+                result = call(
+                    "report-builder",
+                    "productivity:read",
+                    {"dimension": "lead_source", "starts_on": today, "ends_on": today},
+                )
+                assert sum(int(row["value"]) for row in result.json()["data"]["rows"]) == 1
+                result = call("audit-history", "audit:read", {"entity": "campaigns"})
+                assert result.status_code == 200, result.text
+                assert result.json()["data"][0]["resource_id"] == campaign["id"]
+                owner.execute(
+                    "UPDATE memberships SET role='member' WHERE workspace_id=%s AND user_id=%s",
+                    (workspace, actor),
+                )
+                assert call("audit-history", "audit:read", {}).status_code == 403
+                assert (
+                    call(
+                        "custom-fields",
+                        "field-definition:write",
+                        {
+                            "key": uuid4(),
+                            "version": 0,
+                            "entity": "leads",
+                            "name": "Restricted",
+                            "data_type": "boolean",
+                        },
+                    ).status_code
+                    == 403
+                )
+        finally:
+            owner.execute('DELETE FROM "user" WHERE id IN (%s,%s)', (actor, stranger))
+
+
+def test_copilot_enforces_region_consent_and_history_with_mocked_provider(connections, monkeypatch):
+    from clorix import copilot
+
+    admin, runtime = connections
+    answer = {
+        "title": "Fictional response",
+        "summary": "An example",
+        "actions": [],
+        "context_refs": ["orchard-pipeline"],
+        "draft": "",
+    }
+    calls = []
+
+    def inference(fixture, action):
+        calls.append((fixture, action))
+        return answer
+
+    monkeypatch.setattr(copilot, "configured", lambda: True)
+    monkeypatch.setattr(copilot, "generate", inference)
+    with psycopg.connect(admin, autocommit=True) as owner:
+        actor, workspace = tenant(owner)
+        owner.execute(
+            "INSERT INTO copilot_reviewers(workspace_id,user_id,jurisdiction) VALUES(%s,%s,'PK')",
+            (workspace, actor),
+        )
+        try:
+            with TestClient(create_app(runtime, KEY)) as client:
+
+                def call(target, scope, body=None, country="PK"):
+                    return productivity_call(
+                        client, actor, workspace, target, scope, body, country=country
+                    )
+
+                request = {
+                    "key": uuid4(),
+                    "fixture": "orchard",
+                    "action": "pipeline",
+                    "consent": True,
+                }
+                assert call("copilot", "copilot:read", country="GB").status_code == 403
+                assert (
+                    call("copilot-ask", "copilot:ask", {**request, "consent": False}).status_code
+                    == 422
+                )
+                assert (
+                    call(
+                        "copilot-ask", "copilot:ask", {**request, "prompt": "private data"}
+                    ).status_code
+                    == 422
+                )
+                result = call("copilot-ask", "copilot:ask", request)
+                assert result.status_code == 200, result.text
+                message = result.json()["data"]
+                assert message["response"] == answer
+                assert call("copilot-ask", "copilot:ask", request).json()["data"] == message
+                assert calls == [("orchard", "pipeline")]
+                history = call("copilot", "copilot:read").json()["data"]
+                assert history["messages"][0]["response"] == answer
+                assert call(
+                    "copilot-delete", "copilot:delete", {"id": message["conversation_id"]}
+                ).json()["data"]["deleted"]
+                assert call("copilot", "copilot:read").json()["data"]["messages"] == []
+                owner.execute(
+                    "UPDATE copilot_reviewers SET revoked_at=now() WHERE workspace_id=%s AND user_id=%s",
+                    (workspace, actor),
+                )
+                assert call("copilot", "copilot:read").status_code == 403
         finally:
             owner.execute('DELETE FROM "user" WHERE id=%s', (actor,))

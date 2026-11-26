@@ -3,10 +3,33 @@ import { setTimeout as delay } from "node:timers/promises";
 import { once } from "node:events";
 import { resolve } from "node:path";
 
+const sensitive = ["DATABASE_URL", "DIRECT_DATABASE_URL", "CLORIX_ENGINE_DATABASE_URL", "CLORIX_ENGINE_SIGNING_KEY"]
+  .flatMap((name) => {
+    const value = process.env[name];
+    if (!value) return [];
+    try {
+      const parsed = new URL(value);
+      return [value, parsed.password, decodeURIComponent(parsed.password)].filter(Boolean);
+    } catch {
+      return [value];
+    }
+  }).sort((a, b) => b.length - a.length);
+
+function clean(data) {
+  return sensitive.reduce((value, secret) => value.replaceAll(secret, "[redacted]"), data.toString());
+}
+
 const python=resolve(process.platform==="win32"?"backend/.venv/Scripts/python.exe":"backend/.venv/bin/python");
 function command(executable,args,options={}) {
-  const child=spawn(executable,args,{stdio:"inherit",...options});
-  return once(child,"exit").then(([status])=>{if(status!==0)throw Error(executable+" failed");});
+  const child=spawn(executable,args,{stdio:["ignore","pipe","pipe"],...options});
+  const stdout = [], stderr = [];
+  child.stdout.on("data", chunk => stdout.push(chunk));
+  child.stderr.on("data", chunk => stderr.push(chunk));
+  return once(child,"close").then(([status])=>{
+    process.stdout.write(clean(Buffer.concat(stdout)));
+    process.stderr.write(clean(Buffer.concat(stderr)));
+    if(status!==0)throw Error(executable+" failed");
+  });
 }
 
 const browser=process.argv.includes("--browser");

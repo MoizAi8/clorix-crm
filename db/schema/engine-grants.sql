@@ -19,3 +19,15 @@ GRANT SELECT,INSERT ON billing_revisions,recorded_payments TO clorix_engine;
 GRANT SELECT,INSERT,UPDATE ON support_tickets,calendar_events,member_sales_targets TO clorix_engine;
 GRANT SELECT,INSERT ON support_history TO clorix_engine;
 GRANT EXECUTE ON FUNCTION clorix_access.team_directory() TO clorix_engine;
+GRANT SELECT ON copilot_reviewers TO clorix_engine;
+GRANT SELECT,INSERT,DELETE ON copilot_conversations TO clorix_engine;
+GRANT SELECT,INSERT,UPDATE(status,response,completed_at) ON copilot_messages TO clorix_engine;
+GRANT EXECUTE ON FUNCTION clorix_access.consume_quota(text,int,int) TO clorix_engine;
+
+GRANT SELECT,INSERT,UPDATE ON campaigns,email_templates,custom_field_definitions,custom_field_values,saved_workspace_presets TO clorix_engine;
+GRANT SELECT,INSERT,UPDATE,DELETE ON campaign_attribution TO clorix_engine;
+GRANT SELECT,INSERT ON email_drafts TO clorix_engine;
+GRANT SELECT ON audit_events TO clorix_engine;
+DROP POLICY IF EXISTS engine_audit_owner ON audit_events;
+CREATE POLICY engine_audit_owner ON audit_events AS RESTRICTIVE FOR SELECT TO clorix_engine
+  USING (clorix_access.authorized_member(workspace_id,true));

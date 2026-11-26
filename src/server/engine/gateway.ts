@@ -4,7 +4,7 @@ import { AppError, jsonBody, requireOrigin } from "@/server/http";
 import { quota } from "@/server/quotas";
 import { withWorkspace } from "@/server/workspace/context";
 
-type EngineIdentity={actor:string;workspace:string};
+type EngineIdentity={actor:string;workspace:string;country?:string};
 type Operation={method:"GET"|"POST"|"PATCH"|"DELETE";path:string;scope:string;binary?:boolean};
 
 const routes:Record<string,Operation>={
@@ -38,6 +38,23 @@ const routes:Record<string,Operation>={
   "POST calendar-event":{method:"POST",path:"/v2/calendar-event",scope:"calendar:write"},
   "GET team-performance":{method:"GET",path:"/v2/team-performance",scope:"team-performance:read"},
   "POST team-member-target":{method:"POST",path:"/v2/team-member-target",scope:"team-target:write"},
+  "GET campaigns":{method:"GET",path:"/v2/campaigns",scope:"productivity:read"},
+  "POST campaigns":{method:"POST",path:"/v2/campaigns",scope:"campaign:write"},
+  "POST campaign-attribution":{method:"POST",path:"/v2/campaign-attribution",scope:"attribution:write"},
+  "GET email-templates":{method:"GET",path:"/v2/email-templates",scope:"productivity:read"},
+  "POST email-templates":{method:"POST",path:"/v2/email-templates",scope:"email-template:write"},
+  "POST email-draft":{method:"POST",path:"/v2/email-draft",scope:"email-draft:render"},
+  "GET custom-fields":{method:"GET",path:"/v2/custom-fields",scope:"productivity:read"},
+  "POST custom-fields":{method:"POST",path:"/v2/custom-fields",scope:"field-definition:write"},
+  "POST record-fields":{method:"POST",path:"/v2/record-fields",scope:"productivity:read"},
+  "POST record-field":{method:"POST",path:"/v2/record-field",scope:"field-value:write"},
+  "GET saved-presets":{method:"GET",path:"/v2/saved-presets",scope:"productivity:read"},
+  "POST saved-presets":{method:"POST",path:"/v2/saved-presets",scope:"preset:write"},
+  "POST report-builder":{method:"POST",path:"/v2/report-builder",scope:"productivity:read"},
+  "POST audit-history":{method:"POST",path:"/v2/audit-history",scope:"audit:read"},
+  "GET copilot":{method:"GET",path:"/v2/copilot",scope:"copilot:read"},
+  "POST copilot-ask":{method:"POST",path:"/v2/copilot-ask",scope:"copilot:ask"},
+  "POST copilot-delete":{method:"POST",path:"/v2/copilot-delete",scope:"copilot:delete"},
   "GET notifications":{method:"GET",path:"/v2/notifications",scope:"notification:read"},
   "POST notification-read":{method:"POST",path:"/v2/notification-read",scope:"notification:write"},
   "POST notification-preferences":{method:"POST",path:"/v2/notification-preferences",scope:"notification:preferences"},
@@ -48,13 +65,19 @@ export function enabled() {
   return !!process.env.CLORIX_ENGINE_URL && (process.env.CLORIX_ENGINE_SIGNING_KEY?.length??0)>=32;
 }
 
+export function copilotEnabled(actor:string,country: string|null) {
+  return process.env.VERCEL==="1" && process.env.CLORIX_GEMINI_FRONTEND==="true" &&
+    process.env.CLORIX_GEMINI_REVIEWER_IDS?.split(",").includes(actor)===true &&
+    !!country && /^(PK|US|CA|AU|NZ|JP|SG|IN|BR)$/.test(country);
+}
+
 export function serviceGrant(identity:EngineIdentity,op:Operation,body:string,requestId:string,key:string) {
   const now=Math.floor(Date.now()/1000);
   const encode=(value:object)=>Buffer.from(JSON.stringify(value)).toString("base64url");
   const input=encode({alg:"HS256",typ:"JWT"})+"."+encode({
     iss:"clorix-gateway",aud:"clorix-engine",sub:identity.actor,workspace:identity.workspace,
     scope:op.scope,jti:randomUUID(),request_id:requestId,method:op.method,target:op.path,
-    digest:createHash("sha256").update(body).digest("hex"),iat:now,exp:now+35,
+    digest:createHash("sha256").update(body).digest("hex"),iat:now,exp:now+35,country:identity.country,
   });
   return input+"."+createHmac("sha256",key).update(input).digest("base64url");
 }
@@ -69,6 +92,10 @@ export async function forward(request:Request,segments:string[]) {
   if (writes) requireOrigin(request);
   const body=writes ? JSON.stringify(await jsonBody(request,32_768)) : "";
   const principal=await withWorkspace(request,async ({user,workspace})=>({actor:user.id,workspace:workspace.id}));
+  const country=request.headers.get("x-vercel-ip-country");
+  if(operation.scope.startsWith("copilot:")&&!copilotEnabled(principal.actor,country)) {
+    throw new AppError(403,"copilot_eligibility","The fictional lab is only available to approved eligible reviewers.");
+  }
   await quota(request,"engine-user",120,60,principal.actor);
   if (writes) await quota(request,"engine-write",40,60,principal.actor);
   if (operation.binary) await quota(request,"engine-pdf",20,3600,principal.actor);
@@ -80,13 +107,13 @@ export async function forward(request:Request,segments:string[]) {
   }
   const url=new URL(operation.path,base);
   const requestId=randomUUID();
-  const grant=serviceGrant(principal,operation,body,requestId,process.env.CLORIX_ENGINE_SIGNING_KEY!);
+  const grant=serviceGrant({...principal,country:operation.scope.startsWith("copilot:")?country??undefined:undefined},operation,body,requestId,process.env.CLORIX_ENGINE_SIGNING_KEY!);
   let response:Response;
   try {
     response=await fetch(url,{
       method:operation.method,headers:{Authorization:"Bearer "+grant,"X-Request-Id":requestId,
         ...(writes?{"Content-Type":"application/json"}:{})},body:writes?body:undefined,
-      signal:AbortSignal.timeout(8500),redirect:"error",cache:"no-store",
+      signal:AbortSignal.timeout(operation.scope==="copilot:ask"?16000:8500),redirect:"error",cache:"no-store",
     });
   } catch {
     throw new AppError(503,"engine_timeout","Advanced services could not respond. Try again shortly.");
@@ -95,6 +122,9 @@ export async function forward(request:Request,segments:string[]) {
     const detail=recognizedErrors.safeParse(await response.json().catch(()=>null));
     if ([400,403,404,409,413,422,429].includes(response.status)&&detail.success) {
       throw new AppError(response.status,detail.data.error.code,detail.data.error.message);
+    }
+    if(operation.scope.startsWith("copilot:")&&detail.success&&/^copilot_(provider|disabled)$/.test(detail.data.error.code)) {
+      throw new AppError(503,detail.data.error.code,detail.data.error.message);
     }
     throw new AppError(503,"engine_response","Advanced services are temporarily unavailable.");
   }

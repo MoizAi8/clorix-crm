@@ -4,12 +4,14 @@ import { useEffect,useState,type FormEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  Activity,BarChart3,Bell,BriefcaseBusiness,Building2,Check,CalendarDays,ClipboardCheck,Columns3,FlaskConical,Headphones,LayoutDashboard,ReceiptText,
+  Activity,BarChart3,Bell,BriefcaseBusiness,Building2,Check,CalendarDays,ClipboardCheck,Columns3,FlaskConical,FolderKanban,Headphones,LayoutDashboard,ReceiptText,
   LogOut,Menu,Search,Settings as SettingsIcon,UserRoundPlus,Users,X,
 } from "lucide-react";
 import { api,messageOf } from "@/lib/client";
 import { entities,entityLabels,type Entity,type SearchResult } from "@/lib/crm";
 import { dateTime,Dialog,Empty,ErrorNotice,Loading,useLoad } from "@/components/ui/primitives";
+import { Copilot } from "@/components/advanced/copilot";
+import { Productivity } from "@/components/advanced/productivity";
 import { Billing } from "@/components/advanced/billing";
 import { SalesCalendar,Support,TeamPerformance } from "@/components/advanced/operations";
 import { NotificationCenter, Workflows } from "@/components/advanced/workflows";
@@ -63,10 +65,10 @@ function SearchDialog({workspace,onClose,navigate}:{workspace:string;onClose:()=
 const advancedNav=[
   ["intelligence","Sales intelligence",BarChart3],["pipeline-settings","Pipeline settings",Columns3],
   ["workflows","Workflow studio",Activity],["notifications","Notifications",Bell],["billing","Billing",ReceiptText],
-  ["support","Support",Headphones],["calendar","Calendar",CalendarDays],["team-performance","Team performance",Users],
+  ["support","Support",Headphones],["calendar","Calendar",CalendarDays],["team-performance","Team performance",Users],["productivity","Productivity",FolderKanban],
 ] as const;
 
-export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
+export function WorkspaceApp({advanced=false,copilot=false}:{advanced?:boolean;copilot?:boolean}) {
   const params=useSearchParams();
   const [revision,setRevision]=useState(0);
   const [menu,setMenu]=useState(false);
@@ -78,7 +80,7 @@ export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
   const workspace=data?.workspaces.find(space=>space.id===params.get("space"))??data?.workspaces[0];
   const selected=params.get("view")??"dashboard";
   const view=nav.some(entry=>entry[0]===selected)||selected==="follow-up"||
-    advanced&&advancedNav.some(entry=>entry[0]===selected)?selected:"dashboard";
+    advanced&&(advancedNav.some(entry=>entry[0]===selected)||(copilot&&selected==="copilot"))?selected:"dashboard";
   const id=params.get("id");
   const create=params.get("new")==="1";
   const entity=entities.includes(view as Entity)?view as Entity:null;
@@ -121,7 +123,7 @@ export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
       <Link className="brand" href="/" aria-label="Clorix home"><span className="brand-mark"/><span>Clorix<span>.</span></span></Link>
       <button className="icon-button close-nav" aria-label="Close navigation" onClick={()=>setMenu(false)}><X size={20}/></button>
       <div className="side-workspace">{workspace?.name??"Workspace"}</div>
-      <nav aria-label="Workspace navigation">{[...nav,...(advanced?advancedNav:[])].map(([key,label,Icon])=><div className="nav-item" key={key}>{key==="intelligence"&&<span className="nav-group-label">Intelligence and operations</span>}<button type="button" key={key}
+      <nav aria-label="Workspace navigation">{[...nav,...(advanced?advancedNav:[]),...(advanced&&copilot?([["copilot","AI Sales Copilot",Activity]] as const):[])].map(([key,label,Icon])=><div className="nav-item" key={key}>{key==="intelligence"&&<span className="nav-group-label">Intelligence and operations</span>}<button type="button" key={key}
         aria-current={(view===key||(view==="follow-up"&&key==="tasks"))?"page":undefined}
         className={view===key||(view==="follow-up"&&key==="tasks")?"active":undefined} onClick={()=>navigate(key)}><Icon size={18}/><span>{label}</span>
       </button></div>)}</nav>
@@ -152,13 +154,15 @@ export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
           view==="pipeline-settings"?<PipelineSettings key={shared.workspace.id} {...shared}/>:
           view==="workflows"?<Workflows key={shared.workspace.id} {...shared}/>:
           view==="notifications"?<NotificationCenter key={shared.workspace.id} {...shared}/>:
+          view==="productivity"?<Productivity key={shared.workspace.id} {...shared}/>:
           view==="billing"?<Billing key={shared.workspace.id} {...shared} recordId={id??undefined}/>:
+          view==="copilot"?<Copilot key={shared.workspace.id} {...shared}/>:
           view==="support"?<Support key={shared.workspace.id+(id??"")} {...shared} recordId={id??undefined}/>:
           view==="calendar"?<SalesCalendar key={shared.workspace.id} {...shared}/>:
           view==="team-performance"?<TeamPerformance key={shared.workspace.id} {...shared}/>:
           view==="settings"?<Settings key={shared.workspace.id} {...shared}/>:
-          entity&&id?<RecordDetail key={shared.workspace.id+entity+id} {...shared} entity={entity} id={id}/>:
-          entity?<RecordList key={shared.workspace.id+entity} {...shared} entity={entity} create={create}/>:null}
+          entity&&id?<RecordDetail key={shared.workspace.id+entity+id} {...shared} entity={entity} id={id} advanced={advanced}/>:
+          entity?<RecordList key={shared.workspace.id+entity} {...shared} entity={entity} create={create} advanced={advanced}/>:null}
       </main>
     </div>
     {search&&workspace&&<SearchDialog workspace={workspace.id} onClose={()=>setSearch(false)} navigate={navigate}/>}

@@ -3,7 +3,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from uuid import UUID
 
+import certifi
 from psycopg import Connection
+from psycopg.conninfo import conninfo_to_dict
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 
@@ -23,6 +25,12 @@ class Tenant:
 
 class Database:
     def __init__(self, dsn: str):
+        # Use the bundled trust store for libpq builds without a populated system CA path.
+        tls = (
+            {"sslrootcert": certifi.where()}
+            if dsn and conninfo_to_dict(dsn).get("sslrootcert") == "system"
+            else {}
+        )
         self.pool = (
             ConnectionPool(
                 conninfo=dsn,
@@ -35,6 +43,7 @@ class Database:
                     "connect_timeout": 4,
                     "prepare_threshold": None,
                     "row_factory": dict_row,
+                    **tls,
                 },
             )
             if dsn

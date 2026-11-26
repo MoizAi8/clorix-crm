@@ -70,3 +70,11 @@ After each milestone record UTC timestamp, branch/SHA, changed modules, commands
 - Passed 69 Python tests, one live Next.js-to-FastAPI scenario and six local production-browser tests, including the legacy suite and three upgrade journeys. Verified concurrent payment rejection, exact minor units, downloadable PDF content and document page renders.
 - The first hosted database handshake exposed a missing libpq CA source. The staged engine configuration now requests the system trust roots with full verification. Rebuild and hosted tests are next. The original production connection, alias and main branch remain unchanged.
 - Next phase covers restricted Gemini Copilot, productivity tools and release verification.
+
+## Clorix 2.0 productivity checkpoint — 2026-11-27 PKT
+
+- Continued from Phase C. Support tickets and internal notes, the sales calendar, team targets, billing flows and PDF renders had already passed the dedicated browser suite.
+- Added campaigns with lead attribution, email templates and drafts, typed custom fields, saved views and reports, and owner audit history. Applied migrations 011–012 to the dedicated local and Neon staging databases and reapplied role-specific grants.
+- Added a private allowlisted Gemini lab with regional and consent controls, fictional prompts, quotas, history and deletion. A mocked provider verified the lifecycle. No live Gemini key or approved reviewer has been configured for this checkpoint.
+- Passed 105 Python checks and the live local Next.js-to-FastAPI test. The suite fixed a UTC date boundary in the payment fixture. Rotated the two isolated local credentials that appeared in a prior fixture failure and added output redaction to the harness.
+- Hosted Vercel logs showed an incomplete CA trust store. The staged engine now supplies a bundled CA store for libpq's hostname-verified connection. The hosted database and productivity browser checks remain pending.
