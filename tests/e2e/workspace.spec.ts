@@ -102,11 +102,14 @@ test("marketing, browser lifecycle, search, CSV, reports and isolation",async({p
     await expect(proposal.getByRole("button",{name:"Fictional Browser Deal",exact:true})).toHaveCount(0);
     await page.unroute("**/api/v1/deals/**/move");
   }
+  const moved=page.waitForResponse(res=>res.request().method()==="POST" && /\/api\/v1\/deals\/[^/]+\/move$/.test(res.url()));
   await card.dragTo(proposal);
+  expect((await moved).status()).toBe(200);
   await expect(proposal.getByRole("button",{name:"Fictional Browser Deal",exact:true})).toBeVisible();
   await screenshot(page,"pipeline");
-  await card.getByRole("button",{name:"Move deal Fictional Browser Deal"}).focus();
-  await page.keyboard.press("Enter");
+  const moveButton=proposal.getByRole("button",{name:"Move deal Fictional Browser Deal"});
+  await expect(moveButton).toBeEnabled();
+  await moveButton.press("Enter");
   dialog=page.getByRole("dialog");
   await dialog.getByLabel("New stage").selectOption({label:"Closed Won"});
   await dialog.getByRole("button",{name:"Move deal",exact:true}).click();
