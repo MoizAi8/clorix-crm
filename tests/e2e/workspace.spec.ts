@@ -422,7 +422,8 @@ test("campaigns, email drafts, reports, custom fields and saved views @advanced"
   await page.getByRole("button",{name:"Audit log",exact:true}).click();
   await page.getByLabel("Resource type").fill("campaigns");
   await page.getByRole("button",{name:"Filter audit log"}).click();
-  await expect(page.getByText("Campaigns",{exact:true}).last()).toBeVisible();
+  const audit=page.locator("section").filter({has:page.getByRole("heading",{name:"Audit log",level:2})});
+  await expect(audit.locator("article").getByText("Campaigns",{exact:true})).toBeVisible();
 
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("button",{name:"Open navigation"}).click();
@@ -430,5 +431,6 @@ test("campaigns, email drafts, reports, custom fields and saved views @advanced"
   await nav(page,"Productivity").click();
   await expect(page.getByRole("heading",{name:"Productivity",level:1})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await expect(audit.locator("article").getByText("Campaigns",{exact:true})).toBeVisible();
   await screenshot(page,"advanced-productivity-mobile");
 });

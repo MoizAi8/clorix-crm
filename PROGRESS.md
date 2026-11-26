@@ -85,3 +85,10 @@ After each milestone record UTC timestamp, branch/SHA, changed modules, commands
 - Added mapped CSV import and filtered export for the core record types, commercial and support results in the command palette, printable report charts and authorized report drill-down. Added bounded private attachments with forced downloads and no sandbox uploads. Applied migration 013 in both isolated environments.
 - The local runner passed 128 Python checks, 39 TypeScript unit checks, 16 TypeScript PostgreSQL checks, one live Next.js-to-FastAPI check and seven production-browser journeys. Verified uploads and bytes, search navigation and the new productivity workflow. The optional Gemini key and reviewer setup remain pending.
 - Vercel staging uses a separate frontend with the dedicated Neon staging database and staged FastAPI service. The staged frontend and latest engine bundle still require hosted browser acceptance before production promotion.
+
+## Clorix 2.0 staging acceptance — 2026-11-27 PKT
+
+- Staged commit 0608edf on both Vercel projects. Six hosted browser journeys passed against Neon, including sandbox isolation, private attachments, workflow task and notification writes, quotation-to-invoice conversion, partial payment, PDF download, support/calendar/team goals and productivity on mobile.
+- Verified the locally saved `CLORIX_GEMINI_API_KEY`. The exact variable was absent from the staging engine's Production listing, so it was added as sensitive. Activated the Google-listed free model `gemini-3.5-flash-lite` for the approved fictional reviewer flow.
+- Fixed the Gemini request timeout that the provider rejected, and constrained response references to the selected fixture. Genuine inference through the local Clorix service passed in 2.072 seconds. Hosted Gemini verification is next.
+- Aligned the PostgreSQL audit-read policy with the application owner check so guest workspace owners can verify audit events belonging to their own synthetic sandbox.

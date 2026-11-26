@@ -30,6 +30,7 @@ GRANT SELECT,INSERT ON email_drafts TO clorix_engine;
 GRANT SELECT ON audit_events TO clorix_engine;
 DROP POLICY IF EXISTS engine_audit_owner ON audit_events;
 CREATE POLICY engine_audit_owner ON audit_events AS RESTRICTIVE FOR SELECT TO clorix_engine
-  USING (clorix_access.authorized_member(workspace_id,true));
+  USING (EXISTS(SELECT 1 FROM memberships m WHERE m.workspace_id=audit_events.workspace_id
+    AND m.user_id=clorix_access.actor() AND m.role='owner' AND m.status='active'));
 
 GRANT SELECT,INSERT,DELETE ON record_attachments TO clorix_engine;

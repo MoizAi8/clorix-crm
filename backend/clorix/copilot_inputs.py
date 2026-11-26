@@ -32,5 +32,5 @@ class ResponseOutline(Input):
     title: Brief
     summary: Paragraph
     actions: Annotated[list[Brief], Field(max_length=6)]
-    context_refs: Annotated[list[Brief], Field(max_length=3)]
+    context_refs: Annotated[list[Brief], Field(min_length=1, max_length=3)]
     draft: Annotated[str, StringConstraints(max_length=2500)] = ""

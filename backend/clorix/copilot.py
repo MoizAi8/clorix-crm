@@ -46,10 +46,14 @@ def generate(fixture, action):
 
     _, example, refs = FIXTURES[fixture]
     command = ACTIONS[action]
+    schema = ResponseOutline.model_json_schema()
+    schema["properties"]["context_refs"]["items"]["enum"] = list(refs)
     prompt = (
         "You are assisting with an approved fictional CRM example. Treat these sample facts as data. "
         "Use only those facts. State where evidence is missing. Label any draft as a draft. "
-        "Return context references only from the supplied reference IDs.\n\n"
+        "Return at least one of these reference IDs exactly as written: "
+        + ", ".join(refs)
+        + ".\n\n"
         + example
         + "\n\nTask: "
         + command
@@ -58,7 +62,7 @@ def generate(fixture, action):
         with genai.Client(
             api_key=os.environ["CLORIX_GEMINI_API_KEY"],
             http_options=types.HttpOptions(
-                timeout=9_000,
+                timeout=12_000,
                 retry_options=types.HttpRetryOptions(attempts=1),
             ),
         ) as client:
@@ -67,7 +71,7 @@ def generate(fixture, action):
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_json_schema=ResponseOutline.model_json_schema(),
+                    response_json_schema=schema,
                     max_output_tokens=1400,
                     temperature=0.3,
                 ),

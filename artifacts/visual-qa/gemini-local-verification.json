@@ -1,0 +1,9 @@
+{
+  "realGemini": true,
+  "model": "gemini-3.5-flash-lite",
+  "fixture": "orchard",
+  "action": "pipeline",
+  "references": 3,
+  "latencyMs": 2072,
+  "responseDigest": "f0b8cf3fc49489b83c6cbe02b575cedb99f069466329c138559a9c363ac887f5"
+}
