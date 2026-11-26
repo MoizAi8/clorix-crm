@@ -1,0 +1,22 @@
+{
+  "mode": "Chrome desktop process with 390×844 mobile emulation, unthrottled",
+  "url": "https://clorix-crm.vercel.app",
+  "firstNavigation": {
+    "lcpMs": 796,
+    "cls": 0
+  },
+  "warmNavigations": [
+    {
+      "lcpMs": 148,
+      "cls": 0
+    },
+    {
+      "lcpMs": 124,
+      "cls": 0
+    },
+    {
+      "lcpMs": 148,
+      "cls": 0
+    }
+  ]
+}

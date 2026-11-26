@@ -1,7 +1,7 @@
 # Locked design — Midnight Growth Hybrid
 Name: **Clorix** (wordmark with optional dot as visual punctuation, product name Clorix). Tagline: **From lead to loyalty.**
 
-The user explicitly revised the dashboard: keep dark navigation workspace/sidebar; make insights, performance, records, tables and forms predominantly white/light. Use white in landing feature sections too. `design/hybrid-dashboard.svg` and `design/tokens.css` are the authoritative layout and palette. The local `design/references/initial-concept.png` is landing inspiration only. The obsolete dashboard PNG was removed. No fake logos, demo metric claims or fake testimonials from reference images.
+The user explicitly revised the dashboard: keep dark navigation workspace/sidebar; make insights, performance, records, tables and forms predominantly white/light. Use white in landing feature sections too. `design/hybrid-dashboard.svg` and `design/tokens.css` are the authoritative layout and palette. The obsolete raster concepts were removed. No fake logos, demo metric claims or fake testimonials from reference images.
 
 ## Tokens
 | Token | Hex | Use |

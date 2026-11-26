@@ -1,0 +1,18 @@
+{
+  "mode": "Local production bundle",
+  "suites": [
+    {
+      "name": "marketing, browser lifecycle, search, CSV, reports and isolation",
+      "status": "expected"
+    },
+    {
+      "name": "keyboard, layout and accessibility at five viewport sizes @local",
+      "status": "expected"
+    },
+    {
+      "name": "private invited registration and reload persistence",
+      "status": "expected"
+    }
+  ],
+  "count": 3
+}

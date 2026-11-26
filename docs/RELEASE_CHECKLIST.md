@@ -1,22 +1,24 @@
-# Portfolio release gate — all mandatory
-Record PASS/FAIL/NOT RUN + evidence path or command and deployed SHA. No pass before testing. Optional AI/enterprise features are not mandatory and must be hidden or documented if absent.
+# Portfolio release gate
 
-- [ ] Landing and branding approved: dark cinematic hero, alternating light sections, white workspace/dark sidebar; all CTA/links work; no fake claims.
-- [ ] Public no-invite sandbox creates isolated real DB workspace with labeled data, caps/TTL and safe recovery/error; two sessions independent; refresh persists.
-- [ ] Private login/logout and configured account creation work; team invite/roles authorized in private workspace; last owner protected.
-- [ ] Lead create/edit/filter/qualify/convert; repeat conversion idempotent; related contact/company/deal persist.
-- [ ] Contact/company create/edit/archive and details/links work; scoped relationship validation.
-- [ ] Deal create/edit/move via DnD and keyboard menu; won/lost/reopen, version conflict and history consistent.
-- [ ] Tasks create/complete/reopen, overdue list and manual activity timeline persist.
-- [ ] Dashboard/report actual exact totals, date filters, empty states, forecast, zero denominator and archive/reopen rules.
-- [ ] Global search keyboard access and authorized results; CSV preview/commit/errors/duplicate policy/export safe.
-- [ ] Settings/role actions function; no unsupported password reset or external sending UI.
-- [ ] Auth/session/CSRF/validation/rate limits verified; runtime nonowner RLS and no cross-tenant data or export; secrets absent.
-- [ ] Database migrations and test isolation verified; sandbox expiration cleanup tested; no unexpected destructive operations.
-- [ ] Production build, unit, real integration, browser suites pass; actual counts and failures recorded; no critical/high core blocker.
-- [ ] Mobile/desktop/tablet, keyboard, reduced motion, accessibility and visual QA completed; screenshots sanitized.
-- [ ] Search/report benchmark measured and bottlenecks documented; no unsupported performance claims.
-- [ ] Dedicated free resources only; current provider terms checked; public repo clean, license status clear; hosted deployed SHA and fresh acceptance recorded.
-- [ ] README has real setup, access instructions, features, limitations, evidence, live URL; no private invite or credentials.
+**GO for fictional-data portfolio evaluation.** Vercel production is running commit [528b097](https://github.com/MoizAi8/clorix-crm/commit/528b097ad965c8a61cef2e5b65a497ca94497946). The [GitHub Actions run](https://github.com/MoizAi8/clorix-crm/actions/runs/45857389951) passed on that commit.
 
-Verdict GO = all mandatory gates pass for non-commercial synthetic portfolio evaluation. NO-GO = any gate fails or is unverified. Commercial/enterprise readiness separate. Report optional items as deferred, not failed core features.
+| Gate | Outcome | Evidence |
+|---|---|---|
+| Landing, branding, links and responsive hybrid workspace | Pass | Production landing links, approved tokens, and desktop/mobile screenshots |
+| No-invite writable sandbox, expiry and durable limits | Pass | Two independent hosted browser contexts, real writes, reload, synthetic notice, and PostgreSQL quota/expiry tests |
+| Private account creation and sign-in | Pass | One-time registration, hosted sign-out and sign-in persistence, and team invitation tests |
+| Lead qualification and conversion | Pass | Hosted lead-to-deal flow and concurrent idempotent PostgreSQL conversion |
+| Customer records and relationships | Pass | Hosted contact detail and PostgreSQL related records, archive and scoped relationship checks |
+| Pipeline moves and history | Pass | Hosted drag-and-drop and keyboard move, PostgreSQL version races, lost reason, reopen and stage history |
+| Tasks and activities | Pass | Hosted linked task completion and manual activity, PostgreSQL due-list, archive and reopen |
+| Exact reports and date ranges | Pass | Hosted won-value delta, PostgreSQL date and reopen checks, SQL integer minor units and empty result handling |
+| Search, CSV and settings | Pass | Hosted search, preview, confirmed import and export. PostgreSQL stale preview, duplicate skip, spreadsheet escaping, owner-only actions and session revocation |
+| Tenant isolation and session protection | Pass | PostgreSQL cross-tenant read/write denial, pool reset, forced RLS and foreign-key scoping. Hosted HttpOnly, Secure and SameSite cookies |
+| Migration rollout and isolated cleanup | Pass | Six migrations verified locally and on Neon. No-context pooled verification and bounded expiry tests. Browser fixtures removed using their owned IDs |
+| Local, CI and hosted suites | Pass | 39 unit tests, 15 PostgreSQL tests, 3 local production-browser tests and 2 hosted browser journeys. GitHub Actions independently passed |
+| Visual, responsive and keyboard QA | Pass | Five viewport widths, reduced motion, axe scans on landing and dashboard, and hosted desktop/mobile images |
+| Performance | Pass | 50 authenticated search samples and 50 dashboard samples on isolated synthetic data, plus mobile-emulated landing timing |
+| Dedicated free-tier release | Pass | Public personal GitHub source, Vercel Hobby and Neon Free. Deployment metadata matched the published source SHA |
+| Setup, access instructions, limitations and license status | Pass | README, deployment instructions, known limitations and this evidence record |
+
+[Open the live sandbox](https://clorix-crm.vercel.app/sandbox) · [Verification artifacts](../artifacts/visual-qa/) · [Known limitations](KNOWN_LIMITATIONS.md)

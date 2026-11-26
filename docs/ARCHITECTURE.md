@@ -8,3 +8,20 @@ Database request flow: authenticate library session, resolve membership through 
 Workflow: lead conversion and deal stage mutation atomically update records and activity, optimistic version check; UI rolls back failed requests and refetches. Analytics queries computed over same workspace and date/currency contract; no stale cross-user cache. Import preview is nonmutating; confirmation bounded atomic transaction (idempotency token, checksum, reject changed payload). Export filtered/scoped, capped, CSV sanitized. Global search indexed and limited. Quota counters persistent, sandbox expiration enforced server-side every request.
 
 Deployment: Vercel Node functions, Neon pooled runtime, direct migration connection used in local/CI authorized step only. No background worker dependency. Avoid long transactions/network calls inside transaction. Optional external AI separate endpoint with fixed synthetic input; provider timeout and quota handling. No external API called by core workflow.
+
+## Deployed request path
+
+```mermaid
+flowchart LR
+  Browser --> App["Next.js on Vercel"]
+  App --> Auth["Better Auth session check"]
+  App --> Service["Validated CRM service"]
+  Service --> Context["Transaction-local actor and workspace"]
+  Auth --> Pool["Restricted pooled login"]
+  Context --> Pool
+  Pool --> Database["Neon PostgreSQL"]
+  Database --> RLS["Forced RLS and scoped foreign keys"]
+  Migrator["Direct operator connection"] --> Database
+```
+
+The runtime may call narrowly scoped database functions for quota counters, account invitation acceptance, and expired-guest cleanup. The application acquires a workspace-scoped advisory lock for writes and uses read-only repeatable-read transactions for reports and other tenant reads.

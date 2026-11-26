@@ -4,6 +4,10 @@
 
 Clorix is a full-stack CRM for personal, non-commercial evaluation with fictional data. It uses the Midnight Growth Hybrid theme, with a Midnight Navy sidebar and a Soft White workspace.
 
+- [Open Clorix](https://clorix-crm.vercel.app/)
+- [Try the live sandbox](https://clorix-crm.vercel.app/sandbox)
+- [Sign in with a private evaluation account](https://clorix-crm.vercel.app/sign-in)
+
 ## What you can do
 
 - Capture, qualify, archive and convert leads into linked contacts, companies and deals.

@@ -1,0 +1,16 @@
+{
+  "mode": "Live Vercel production",
+  "deploymentSha": "528b097ad965c8a61cef2e5b65a497ca94497946",
+  "url": "https://clorix-crm.vercel.app",
+  "suites": [
+    {
+      "name": "marketing, browser lifecycle, search, CSV, reports and isolation",
+      "status": "expected"
+    },
+    {
+      "name": "private invited registration and reload persistence",
+      "status": "expected"
+    }
+  ],
+  "count": 2
+}

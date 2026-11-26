@@ -1,7 +1,7 @@
 # Clorix — From lead to loyalty.
 **Approved pre-development kit | 26 November 2026 | Midnight Growth Hybrid**
 
-This is a specification and starter directory, not an implemented application. No packages, database, GitHub repo or deployment have been provisioned by this kit.
+Clorix is implemented. See [README.md](README.md) for the live sandbox and local setup, and [PROGRESS.md](PROGRESS.md) for release evidence. The instructions below describe the original pre-development checkpoint.
 
 1. Extract the entire ZIP to a dedicated folder, e.g. `C:\Users\DC\clorix-crm`. Open the folder (not an individual document) in Codex.
 2. Start a fresh Codex project/chat. Use the kickoff prompt in `KICKOFF_PROMPT.md`; it points to `MASTER_PROMPT.md` and all authoritative docs. No need to paste every file.
