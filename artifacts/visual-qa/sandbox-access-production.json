@@ -1,0 +1,14 @@
+{
+  "commit": "e9fe610517891787984fee33072f846c3da1375c",
+  "origin": "https://clorix-crm.vercel.app/sandbox",
+  "firstTimeStatus": 200,
+  "doubleClickStarts": 1,
+  "sameWorkspaceAfterRefreshAndRevisit": true,
+  "secureStarterCookie": true,
+  "singleDatabaseReceipt": true,
+  "policy": {
+    "ttl_hours": 24,
+    "max_active": 30,
+    "max_records": 500
+  }
+}
