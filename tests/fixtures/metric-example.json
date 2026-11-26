@@ -1,0 +1,28 @@
+{
+  "description": "Synthetic current-state metric test (amounts in USD minor units)",
+  "deals": [
+    {
+      "id": "a",
+      "stage": "open",
+      "amount_minor": "125000",
+      "probability": 30
+    },
+    {
+      "id": "b",
+      "stage": "won",
+      "amount_minor": "250000"
+    },
+    {
+      "id": "c",
+      "stage": "lost",
+      "amount_minor": "100000"
+    }
+  ],
+  "expected": {
+    "open_pipeline_minor": "125000",
+    "weighted_forecast_minor": "37500",
+    "won_value_minor": "250000",
+    "won_count": 1,
+    "win_rate_percent": 50
+  }
+}

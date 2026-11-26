@@ -1,0 +1,13 @@
+/* Approved pre-development token seed; integrate into actual app. */
+:root {
+ --clorix-navy:#0B1220; --clorix-sidebar:#111A2E; --clorix-forest:#12352B;
+ --clorix-lime:#C7FF4D; --clorix-mint:#8FE8C8; --clorix-green-ink:#205B49;
+ --clorix-white:#FFFFFF; --clorix-canvas:#F5F8F7; --clorix-mint-wash:#EAF8F0;
+ --clorix-border:#DCE5E0; --clorix-dark-border:#22314A; --clorix-dark-muted:#9FB0C7;
+ --clorix-muted:#53665E; --clorix-danger:#A32130; --clorix-warning:#8A5200;
+ --background:var(--clorix-canvas); --surface:var(--clorix-white); --foreground:var(--clorix-navy);
+ --primary:var(--clorix-lime); --primary-foreground:var(--clorix-navy);
+ --radius-card:12px; --radius-control:8px; --sidebar-width:240px;
+ --font-heading:Manrope,system-ui,sans-serif; --font-ui:Inter,system-ui,sans-serif;
+}
+.marketing-dark { --background:var(--clorix-navy); --foreground:var(--clorix-white); --surface:var(--clorix-sidebar); }

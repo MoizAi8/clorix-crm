@@ -1,0 +1,9 @@
+asset,origin,usage
+public/brand/mark.svg,Original kit vector,Product identity
+public/brand/favicon.svg,Original kit vector,Favicon
+public/brand/wordmark-on-dark.svg,Original kit vector,Dark surface
+public/brand/wordmark-on-light.svg,Original kit vector,Light surface
+design/hybrid-dashboard.svg,Original kit wireframe,Approved direction only
+design/landing-concept.svg,Original kit wireframe,Concept only
+public/brand/references/initial-concept.png,Generated concept from prior conversation,Internal reference only
+public/brand/references/approved-dashboard-direction.png,User-provided reference screenshot,Internal reference only; main content must be light
