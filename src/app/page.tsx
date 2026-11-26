@@ -91,6 +91,6 @@ export default function Home(){
     </div></section>
     <section className="marketing-section closing"><div className="container"><h2>From lead to loyalty.</h2>
       <Link href="/sandbox" className="button primary">Try live sandbox <ArrowRight size={19}/></Link></div></section>
-    <footer className="marketing-footer"><div className="container"><Logo/><div><Link href="/privacy">Sandbox data and privacy</Link><Link href="/accessibility">Accessibility</Link></div></div></footer>
+    <footer className="marketing-footer"><div className="container"><Logo/><div><Link href="/privacy">Sandbox data and privacy</Link><Link href="/accessibility">Accessibility</Link><a href="https://github.com/MoizAi8/clorix-crm">Source on GitHub</a></div></div></footer>
   </main>;
 }
