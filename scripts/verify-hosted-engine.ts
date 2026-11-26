@@ -25,7 +25,10 @@ async function main(){
     assert.equal(health.status,200);
     assert.deepEqual((await health.json()).data,{status:"ok",service:"clorix-engine"});
     assert.equal((await fetch(engineUrl+"v2/workspace",{signal:AbortSignal.timeout(12000)})).status,401);
-    const opened=await POST(new Request(new URL("/api/v1/access/sandbox",base),{
+    const path=new URL("/api/v1/access/sandbox",base);
+    const prepared=await GET(new Request(path),{params:Promise.resolve({parts:["access","sandbox"]})});
+    writeHeaders.set("cookie",prepared.headers.getSetCookie().map(value=>value.split(";")[0]).join("; "));
+    const opened=await POST(new Request(path,{
       method:"POST",headers:writeHeaders,body:JSON.stringify({synthetic:true}),
     }),{params:Promise.resolve({parts:["access","sandbox"]})});
     assert.equal(opened.status,200);

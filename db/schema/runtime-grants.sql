@@ -12,3 +12,4 @@ GRANT EXECUTE ON FUNCTION clorix_access.active_member() TO clorix_runtime;
 GRANT DELETE ON leads TO clorix_runtime;
 GRANT EXECUTE ON FUNCTION clorix_access.authorized_member(uuid,boolean) TO clorix_runtime;
 GRANT SELECT ON sales_pipelines TO clorix_runtime;
+GRANT EXECUTE ON FUNCTION clorix_access.admit_sandbox(text,text,text,int,text) TO clorix_runtime;

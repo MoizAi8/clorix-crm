@@ -31,6 +31,9 @@ export function failed(error: unknown) {
       ? { status:422,code:"validation",message:error.issues[0]?.message ?? "Check the submitted fields." }
       : { status:503,code:"unavailable",message:"Clorix is temporarily unavailable. Please retry." };
   if (response.status===503) console.error("clorix: request failed",requestId,databaseCode ?? (error as Error | null)?.name ?? "unknown");
+  if (response.status===429 && response.code.startsWith("sandbox_")) {
+    console.info("clorix: sandbox admission limited",requestId,response.code,response.retry);
+  }
   return Response.json({ error:{ code:response.code,message:response.message,requestId } },
     { status:response.status, headers:{ "Cache-Control":"private, no-store", ...(response.retry ? {"Retry-After":String(response.retry)} : {}) } });
 }

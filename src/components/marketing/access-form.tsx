@@ -1,6 +1,6 @@
 "use client";
 
-import { useState,type FormEvent } from "react";
+import { useRef,useState,type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowUpRight,FlaskConical } from "lucide-react";
 import { api,messageOf,RequestError } from "@/lib/client";
@@ -16,13 +16,15 @@ const modes={
 export function AccessForm({mode}:{mode:keyof typeof modes}) {
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
+  const inFlight=useRef(false);
   const [signedOut,setSignedOut]=useState(false);
   const [expired,setExpired]=useState(false);
   const item=modes[mode];
 
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (inFlight.current) return;
+    inFlight.current=true;
     const form=new FormData(event.currentTarget);
     setError("");setBusy(true);setSignedOut(false);setExpired(false);
     try {
@@ -34,12 +36,20 @@ export function AccessForm({mode}:{mode:keyof typeof modes}) {
       const body=mode==="sandbox"?{synthetic:form.has("synthetic")}:
         {email:String(form.get("email")).trim(),password:String(form.get("password")),
           ...(mode==="register"?{name:String(form.get("name")),token:window.location.hash.slice(1)||String(form.get("token")??"").trim()}: {})};
-      const {data}=await api<{path:string}>("access/"+mode,{method:"POST",body});
+      const start=async()=>{
+        if(mode==="sandbox")await api("access/sandbox");
+        return api<{path:string}>("access/"+mode,{method:"POST",body});
+      };
+      const {data}=mode==="sandbox"&&navigator.locks?await navigator.locks.request("clorix-sandbox",start):await start();
       const next=window.location.hash;
       if (mode==="login" && /^#join=[A-Za-z0-9_-]{43}$/.test(next)) window.location.replace("/join#"+next.slice(6));
       else window.location.replace(data.path);
     } catch (caught) {
-      setError(messageOf(caught));
+      const retry=mode==="sandbox"&&caught instanceof RequestError&&caught.status===429?caught.retryAfter:undefined;
+      const timing=retry?" Try again in about "+new Intl.RelativeTimeFormat("en",{style:"long"}).format(
+        retry>=3600?Math.ceil(retry/3600):Math.ceil(retry/60),retry>=3600?"hour":"minute").replace(/^in /,"")+".":"";
+      setError(messageOf(caught)+timing);
+      inFlight.current=false;
       setSignedOut(caught instanceof RequestError && caught.status===401);
       setExpired(caught instanceof RequestError && caught.status===410);
       setBusy(false);
@@ -59,7 +69,7 @@ export function AccessForm({mode}:{mode:keyof typeof modes}) {
       {mode==="sandbox"&&<div className="access-icon"><FlaskConical size={24}/></div>}
       <h1>{item.title}</h1><p>{item.subtitle}</p>
       {mode==="sandbox"&&<>
-        <ul className="sandbox-facts"><li>Changes persist in this browser session.</li><li>The workspace expires after 24 hours.</li><li>Keep real customer and personal information out of the sandbox.</li></ul>
+        <ul className="sandbox-facts"><li>Keep this browser’s cookies to return to your workspace.</li><li>The workspace expires after 24 hours.</li><li>Keep real customer and personal information out of the sandbox.</li></ul>
         <label className="check"><input type="checkbox" name="synthetic" required/>I’ll use fictional data only.</label>
       </>}
       {(mode==="login"||mode==="register")&&<>

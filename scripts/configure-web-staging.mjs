@@ -17,7 +17,7 @@ const config={
   CLORIX_ENGINE_SIGNING_KEY:process.env.CLORIX_ENGINE_SIGNING_KEY,
   CLORIX_ENGINE_URL:process.env.CLORIX_ENGINE_URL,
   APP_URL:"https://clorix-v2-preview.vercel.app",
-  SANDBOX_IP_DAILY_LIMIT:"10",
+  SANDBOX_IP_DAILY_LIMIT:"20",
 };
 const sensitive=new Set(["DATABASE_URL","AUTH_SECRET","DEMO_RATE_LIMIT_SECRET","CLORIX_ENGINE_SIGNING_KEY"]);
 for(const [name,value] of Object.entries(config)) {

@@ -6,7 +6,7 @@ Target ~150–200 meaningful checks if resources permit, but do not invent count
 | Unit | 65–85 | validation boundaries, exact money, stage state, date/timezone, win rate, forecast, search/filter parsing, CSV escaping, rate-limit decisions |
 | PostgreSQL integration | 45–65 | migrations, all CRUD, FK constraints, conversion atomicity/idempotency, transition races, archive, analytics consistency, RLS, quotas, import atomicity, invites, expiry |
 | Production browser | 15–20 | sandbox, login/logout, lead conversion, DnD and keyboard move, task, CSV, search, reports, mobile, accessibility, error/empty states |
-| Hosted acceptance | 15–20 | real deployment core flows, two independent sessions, persistence, access, analytics, safe cleanup, screenshots, health |
+| Hosted acceptance | 15–20 | staging core flows, two independent sessions, persistence, access, analytics, safe cleanup, screenshots, health |
 
 ## Essential negative and edge cases
 1. Invalid email/phone/name, extreme text, invalid IDs/date/timezone, negative/overflow amount, stale version, invalid stage, lost reason missing, zero denominator, daylight/time zone boundaries, archive history, reopen metric correction.
@@ -16,7 +16,7 @@ Target ~150–200 meaningful checks if resources permit, but do not invent count
 5. Actual analytics deltas calculated from fixture amounts and date range; DB persistence after reload/sign-in. Report counts exactly. Optional lab if enabled: blocked free-form inputs/real records, ineligible users, quotas, timeout, actual provider response only with fixed sample; mock and hosted counts separate.
 
 ## Performance evidence
-Seed isolated test DB with ~1,000 leads, 500 contacts, 200 companies, 500 deals, 1,000 activities/tasks, coherent relations. Run 50 authenticated search and dashboard queries at modest concurrency (1–3), report local warm p50/p95, cold separately and sample size; suggested warm search p95 <250ms, dashboard p95 <500ms; investigate slow query plans and add indexes if needed. Do not benchmark production aggressively; hosted cold start separate. Measure landing Lighthouse/Playwright representative device, actual values. No unsupported scale claims.
+Seed isolated test DB with ~1,000 leads, 500 contacts, 200 companies, 500 deals, 1,000 activities/tasks, coherent relations. Run 50 authenticated search and dashboard queries at modest concurrency (1–3), report local warm p50/p95, cold separately and sample size; suggested warm search p95 <250ms, dashboard p95 <500ms; investigate slow query plans and add indexes if needed. Run automated hosted acceptance on the dedicated staging app and staging database. Use a single ordinary sandbox start for a production release smoke check. Report hosted cold starts separately. Measure landing Lighthouse/Playwright representative device, actual values. No unsupported scale claims.
 
 ## Evidence
 Save sanitized test outputs, command list, CI URL, deployment SHA, desktop/mobile screenshots under artifacts/visual-qa, benchmark JSON with environment/dataset/measurement, limitations. Record failure and rerun affected suite; never fabricate results. See RELEASE_CHECKLIST for mandatory scenarios.

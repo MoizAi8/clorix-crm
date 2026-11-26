@@ -6,6 +6,7 @@ import { db } from "@/server/db";
 import { AppError, appOrigin, jsonBody, payload } from "@/server/http";
 import { quota } from "@/server/quotas";
 import { actorContext, workspaces } from "@/server/workspace/context";
+import { admitSandbox } from "./sandbox";
 
 export const token = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export const tokenHash = (value:string) => createHash("sha256").update(value).digest("hex");
@@ -33,20 +34,17 @@ export async function access(request:Request, operation:string) {
   switch (operation) {
     case "sandbox": {
       z.strictObject({ synthetic:z.literal(true) }).parse(body);
-      if (process.env.PUBLIC_SANDBOX_ENABLED==="false") throw new AppError(503,"sandbox_off","The live sandbox is temporarily unavailable.");
       const current = await identity(headers);
       if (current) {
         const active = await actorContext(headers,async client => workspaces(client));
-        if (active.length) return payload({ path:"/workspace" });
+        if (active.length) return payload({ path:"/workspace",resumed:true });
         throw new AppError(410,"sandbox_expired","Your sandbox expired. Sign out before starting another.");
       }
-      const limit = z.coerce.number().int().min(1).max(20).parse(process.env.SANDBOX_IP_DAILY_LIMIT ?? 3);
-      await quota(request,"sandbox-ip",limit,86400);
-      await quota(request,"sandbox-global",90,86400,"all");
-      await db().query("SELECT clorix_access.cleanup_guests(5,false)");
-      const result=await auth().api.signInAnonymous({headers,asResponse:true});
-      if (!result.ok) throw new AppError(503,"sandbox_provision","Could not start a sandbox. Try again later.");
-      return sessionResponse(result,{path:"/workspace"});
+      if (process.env.PUBLIC_SANDBOX_ENABLED==="false") throw new AppError(503,"sandbox_off","The live sandbox is temporarily unavailable.");
+      const {token,resumed}=await admitSandbox(request);
+      const result=await auth().api.issueSandboxSession({headers,body:{token},asResponse:true});
+      if (!result.ok) throw new AppError(503,"sandbox_provision","Could not open the sandbox. Please retry in this browser.");
+      return sessionResponse(result,{path:"/workspace",resumed});
     }
     case "login": {
       await quota(request,"login-ip",30,900);

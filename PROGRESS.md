@@ -102,3 +102,10 @@ After each milestone record UTC timestamp, branch/SHA, changed modules, commands
 - The exact `CLORIX_GEMINI_API_KEY` was verified in the local configuration and both engine projects. The approved `gemini-3.5-flash-lite` model returned genuine structured responses locally and on both hosted paths. The measured invocation took 2.072 seconds locally, 2.165 seconds on the staging engine and 3.121 seconds through the production browser. The production advanced analytics request measured 1.104 seconds. These are individual observed timings.
 - The production sandbox denies Gemini. The approved private reviewer uses a fictional workspace and explicit consent. The production smoke fixture was cleaned up, and reviewer sign-in details remain in an ignored local file.
 - External developer API credentials and outbound webhooks are deferred. Internal event history and task and notification delivery are verified. See the architecture, formulas and remaining limits in `docs/CLORIX_2_ENGINE.md` and `docs/KNOWN_LIMITATIONS.md`.
+
+## Public sandbox accessibility fix — 2026-11-27 PKT
+
+- Reproduced HTTP 429 with `quota` and a fixed 86,400-second Retry-After. Production had a full five-start network bucket, five of 90 global starts, and zero active workspaces. Vercel logs confirmed repeated sandbox 429s. Previous hosted runs could charge the same production allowance, and the retained logs lack per-start attribution.
+- Raised the public network allowance to 12. Retained the 90-start global limit, 30 active slots, 24-hour expiry and 500-record workspace cap. Current production storage measured about 11.4 MiB. No production quota records were reset.
+- Migration 014 adds a browser-keyed retry receipt and atomic sandbox admission. Reopens, retries and duplicate requests reuse the existing session. Network, global and capacity denials return distinct error codes and actual remaining durations. Hosted browser suites are restricted to staging.
+- Captured and verified a fresh pre-migration recovery archive. Local PostgreSQL confirmed atomic quota and session behavior, revoked-session denial, isolated verified network identities and intact tenant boundaries.

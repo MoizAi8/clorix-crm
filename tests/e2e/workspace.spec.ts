@@ -13,13 +13,15 @@ async function screenshot(page:Page,name:string) {
   await page.screenshot({path:evidence+"/"+mark+"-"+name+".png",animations:"disabled"});
 }
 
-async function sandbox(page:Page) {
+async function sandbox(page:Page, doubleClick=false) {
   await page.goto("/");
   await expect(page.getByRole("heading",{name:"From lead to loyalty.",level:1})).toBeVisible();
   await page.getByRole("link",{name:"Try live sandbox"}).first().click();
   await page.getByRole("checkbox",{name:/fictional data only/}).check();
-  const response=page.waitForResponse(res=>res.url().endsWith("/api/v1/access/sandbox"));
-  await page.getByRole("button",{name:"Start sandbox"}).click();
+  const response=page.waitForResponse(res=>res.request().method()==="POST"&&res.url().endsWith("/api/v1/access/sandbox"));
+  const start=page.getByRole("button",{name:"Start sandbox"});
+  if(doubleClick)await start.evaluate(button=>{(button as HTMLButtonElement).click();(button as HTMLButtonElement).click();});
+  else await start.click();
   const provision=await response;
   expect(provision.status()).toBe(200);
   const cookieHeader=await provision.headerValue("set-cookie")??"";
@@ -35,6 +37,24 @@ async function sandbox(page:Page) {
 function nav(page:Page,name:string) {
   return page.getByRole("navigation",{name:"Workspace navigation"}).getByRole("button",{name,exact:true});
 }
+
+test("sandbox creates once on double-click and resumes on refresh and revisit",async({page})=>{
+  const starts:string[]=[];
+  page.on("request",request=>{
+    if(request.method()==="POST"&&request.url().endsWith("/api/v1/access/sandbox"))starts.push(request.url());
+  });
+  await sandbox(page,true);
+  const current=owned.at(-1);
+  expect(starts).toHaveLength(1);
+  await page.reload();
+  await expect(page.getByRole("heading",{name:"Business overview"})).toBeVisible();
+  await page.goto("/sandbox");
+  await expect(page).toHaveURL(/\/workspace$/);
+  await expect(page.getByRole("heading",{name:"Business overview"})).toBeVisible();
+  const spaces=await page.request.get("/api/v1/workspaces");
+  expect((await spaces.json()).data.workspaces[0].id).toBe(current);
+  expect(starts).toHaveLength(1);
+});
 
 test.afterAll(async()=>{
   await mkdir(auditRoot,{recursive:true});

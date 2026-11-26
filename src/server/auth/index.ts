@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { anonymous } from "better-auth/plugins";
 import { db } from "@/server/db";
 import { appOrigin } from "@/server/http";
+import { sandboxSession } from "./sandbox-session";
 
 let instance: ReturnType<typeof makeAuth> | undefined;
 
@@ -23,7 +24,7 @@ function makeAuth() {
     session:{expiresIn:60*60*24*7,updateAge:60*60*24,storeSessionInDatabase:true},
     rateLimit:{enabled:false},
     logger:{disabled:true},
-    plugins:[anonymous({
+    plugins:[sandboxSession,anonymous({
       emailDomainName:"sandbox.clorix.example",
       generateName:()=>"Sandbox evaluator",
       disableDeleteAnonymousUser:true,

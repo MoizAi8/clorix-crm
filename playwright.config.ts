@@ -1,5 +1,9 @@
 import { defineConfig } from "@playwright/test";
 
+if(process.env.CLORIX_TEST_ORIGIN&&process.env.CLORIX_TEST_ORIGIN!=="https://clorix-v2-preview.vercel.app") {
+  throw Error("Hosted browser suites may run only on dedicated Clorix staging.");
+}
+
 export default defineConfig({
   testDir:"tests/e2e", workers:1, timeout:process.env.CLORIX_TEST_ORIGIN?90000:60000, retries:0,
   expect:{timeout:process.env.CLORIX_TEST_ORIGIN?15000:5000},

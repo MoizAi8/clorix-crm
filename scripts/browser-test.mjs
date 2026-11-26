@@ -6,7 +6,11 @@ import pg from "pg";
 const hosted=process.argv.includes("--hosted");
 const direct=process.env.DIRECT_DATABASE_URL;
 const origin=process.env.APP_URL;
-if(!direct||!origin||(!hosted&&new URL(direct).pathname!=="/clorix_test"))throw Error("Dedicated verification environment required.");
+if(!direct||!origin|| (hosted
+  ? origin!=="https://clorix-v2-preview.vercel.app"||new URL(direct).pathname!=="/clorix_v2_staging"
+  : origin!=="http://localhost:3000"||new URL(direct).pathname!=="/clorix_test")) {
+  throw Error("Browser suites require the isolated local or hosted staging database and origin.");
+}
 const pool=new pg.Pool({connectionString:direct,max:1,connectionTimeoutMillis:10000});
 const stamp=hosted?"hosted":"local";
 const email="qa-"+randomUUID()+"@clorix.example";

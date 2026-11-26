@@ -1,4 +1,5 @@
 import { access } from "@/server/auth/access";
+import { prepareSandbox } from "@/server/auth/sandbox";
 import { archive,choices,detail,list,newRecord,patchRecord,purgeDraft } from "@/server/crm/records";
 import { convert,move } from "@/server/crm/lifecycle";
 import { entityType,identifier } from "@/server/crm/validation";
@@ -29,7 +30,10 @@ async function handle(request:Request,route:RouteContext) {
       await db().query("SELECT 1");
       return payload({status:"ok"});
     }
-    if (head==="access" && parts.length===2 && method==="POST") return await access(request,id);
+    if (head==="access" && parts.length===2) {
+      if (method==="GET" && id==="sandbox") return prepareSandbox(request);
+      if (method==="POST") return await access(request,id);
+    }
     if (head==="workspaces" && parts.length===1 && method==="GET") {
       return payload(await actorContext(request.headers,async (client,user)=>({workspaces:await workspaces(client),name:user.name})));
     }
