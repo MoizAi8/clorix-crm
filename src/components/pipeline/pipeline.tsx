@@ -10,9 +10,10 @@ import { MoveDeal } from "./move-deal";
 
 type Drop={deal:RecordRow;target?:string;before?:string};
 
-export function Pipeline(shared:Shared) {
+export function Pipeline(shared:Shared&{advanced?:boolean}) {
   const {workspace,revision,refresh,notify,navigate}=shared;
   const {data,error}=useLoad<Board>("pipeline",workspace.id,revision);
+  const [group,setGroup]=useState("");
   const [moving,setMoving]=useState<Drop|null>(null);
   const [dragging,setDragging]=useState<string|null>(null);
   const [over,setOver]=useState<string|null>(null);
@@ -48,13 +49,15 @@ export function Pipeline(shared:Shared) {
     return cards;
   }
 
+  const groups=useLoad<{pipelines:{id:string|null;name:string}[]}>(shared.advanced?"advanced/pipelines":null,workspace.id,revision,true);
   return <>
     <Title title="Pipeline" description="Move deals between stages and review current deal value."
       actions={<button className="button primary" onClick={()=>navigate("deals",undefined,true)}><Plus size={18}/>New deal</button>}/>
+    {groups.data&&groups.data.pipelines.length>1&&<label>Pipeline<select value={group} onChange={event=>setGroup(event.target.value)}>{groups.data.pipelines.map(item=><option key={item.id??"default"} value={item.id??""}>{item.name}</option>)}</select></label>}
     {failure&&<ErrorNotice message={failure} action={refresh}/>}
     {error?<ErrorNotice message={error} action={refresh}/>:!data?<Loading label="Loading pipeline…"/>:
       <div className="kanban" aria-label="Sales pipeline" aria-busy={!!pending}>
-        {data.stages.map(stage=>{
+        {data.stages.filter(stage=>(stage.pipeline_id??"")===group).map(stage=>{
           const cards=visible(stage.id);
           const delta=pending&&pending.deal.stage_id!==pending.target?pending.target===stage.id?1:pending.deal.stage_id===stage.id?-1:0:0;
           const total=BigInt(stage.amount_minor)+BigInt(delta)*BigInt(pending?.deal.amount_minor??"0");
@@ -76,6 +79,6 @@ export function Pipeline(shared:Shared) {
           </section>;
         })}
       </div>}
-    {moving&&data&&<MoveDeal {...shared} deal={moving.deal} target={moving.target} before={moving.before} stages={data.stages} close={()=>setMoving(null)}/>}
+    {moving&&data&&<MoveDeal {...shared} deal={moving.deal} target={moving.target} before={moving.before} stages={data.stages.filter(stage=>(stage.pipeline_id??"")===group)} close={()=>setMoving(null)}/>}
   </>;
 }

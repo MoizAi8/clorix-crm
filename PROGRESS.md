@@ -56,3 +56,10 @@ After each milestone record UTC timestamp, branch/SHA, changed modules, commands
 - Added the locked Python 3.12 FastAPI service, short-lived action-bound gateway authorization, Psycopg tenant-scoped transactions and a distinct read-only engine role. Verified role restrictions and denial after membership revocation.
 - Passed 19 Python tests, one live Next.js-to-FastAPI test, 39 existing unit tests and 15 existing PostgreSQL checks. The ordinary TypeScript regression command skips the dedicated engine test, which passed through its separate live runner. FastAPI's upstream test client emits an HTTPX deprecation warning.
 - Local imports lint was corrected. Added isolated CI wiring. No production database changes or promotion. Next scope is the Phase B sales and workflow modules.
+
+## Clorix 2.0 Phase B checkpoint — 2026-11-26 17:07:24Z
+
+- Added migrations 007–008, custom pipelines, explainable lead and customer scores, deal-risk forecasting, targets, saved lead/customer profiles, workflow definitions and run history, and an in-app inbox. The evaluation action performs bounded manual processing instead of scheduling.
+- Verified 47 Python checks, one live cross-language integration scenario covering idempotent profile writes and a real workflow, 15 existing PostgreSQL checks, and the three existing browser journeys. A focused rerun of the new production-browser scenario passed. Its initial run identified ambiguous workflow control labels, which were corrected.
+- Created an empty Neon staging database and dedicated Vercel Hobby FastAPI project. API secrets are stored only in ignored local files and the isolated service configuration. The Clorix 1.0 database and live frontend were not migrated or redeployed.
+- Next phase starts with catalog, exact quotation/invoice totals and PDF output.

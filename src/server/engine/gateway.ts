@@ -1,13 +1,30 @@
 import { createHash,createHmac,randomUUID } from "node:crypto";
 import { z } from "zod";
 import { AppError, jsonBody, requireOrigin } from "@/server/http";
+import { quota } from "@/server/quotas";
 import { withWorkspace } from "@/server/workspace/context";
 
 type EngineIdentity={actor:string;workspace:string};
 type Operation={method:"GET"|"POST"|"PATCH"|"DELETE";path:string;scope:string;binary?:boolean};
 
 const routes:Record<string,Operation>={
-  workspace:{method:"GET",path:"/v2/workspace",scope:"workspace:read"},
+  "GET workspace":{method:"GET",path:"/v2/workspace",scope:"workspace:read"},
+  "GET intelligence":{method:"GET",path:"/v2/intelligence",scope:"intelligence:read"},
+  "GET pipelines":{method:"GET",path:"/v2/pipelines",scope:"pipeline:read"},
+  "POST pipelines":{method:"POST",path:"/v2/pipelines",scope:"pipeline:write"},
+  "POST stages":{method:"POST",path:"/v2/stages",scope:"stage-config:write"},
+  "POST lead-profile":{method:"POST",path:"/v2/lead-profile",scope:"lead-profile:write"},
+  "POST customer-profile":{method:"POST",path:"/v2/customer-profile",scope:"customer-profile:write"},
+  "POST scoring":{method:"POST",path:"/v2/scoring",scope:"scoring:write"},
+  "POST sales-target":{method:"POST",path:"/v2/sales-target",scope:"target:write"},
+  "GET workflows":{method:"GET",path:"/v2/workflows",scope:"workflow:read"},
+  "POST workflows":{method:"POST",path:"/v2/workflows",scope:"workflow:write"},
+  "POST workflow-evaluate":{method:"POST",path:"/v2/workflow-evaluate",scope:"workflow:evaluate"},
+  "POST workflow-retry":{method:"POST",path:"/v2/workflow-retry",scope:"workflow:retry"},
+  "POST workflow-test":{method:"POST",path:"/v2/workflow-test",scope:"workflow:test"},
+  "GET notifications":{method:"GET",path:"/v2/notifications",scope:"notification:read"},
+  "POST notification-read":{method:"POST",path:"/v2/notification-read",scope:"notification:write"},
+  "POST notification-preferences":{method:"POST",path:"/v2/notification-preferences",scope:"notification:preferences"},
 };
 const recognizedErrors=z.object({error:z.object({code:z.string().regex(/^[a-z_]{1,45}$/),message:z.string().max(250)})});
 
@@ -28,7 +45,7 @@ export function serviceGrant(identity:EngineIdentity,op:Operation,body:string,re
 
 export async function forward(request:Request,segments:string[]) {
   if (!enabled()) throw new AppError(404,"engine_off","Advanced services are not configured.");
-  const operation=routes[segments[0]];
+  const operation=routes[request.method+" "+segments[0]];
   if (segments.length!==1 || !operation || operation.method!==request.method) {
     throw new AppError(404,"engine_route","Advanced action unavailable.");
   }
@@ -36,6 +53,9 @@ export async function forward(request:Request,segments:string[]) {
   if (writes) requireOrigin(request);
   const body=writes ? JSON.stringify(await jsonBody(request,32_768)) : "";
   const principal=await withWorkspace(request,async ({user,workspace})=>({actor:user.id,workspace:workspace.id}));
+  await quota(request,"engine-user",120,60,principal.actor);
+  if (writes) await quota(request,"engine-write",40,60,principal.actor);
+  if (operation.scope==="workflow:evaluate") await quota(request,"engine-evaluate",6,60,principal.workspace);
   const base=new URL(process.env.CLORIX_ENGINE_URL!);
   if ((base.protocol!=="https:" && !(base.protocol==="http:"&&["localhost","127.0.0.1"].includes(base.hostname))) ||
       base.username || base.password || base.search || base.hash || base.pathname!=="/") {

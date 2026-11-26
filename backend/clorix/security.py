@@ -67,7 +67,9 @@ def decode_grant(token: str, key: str) -> Grant:
             raise ValueError("invalid token lifetime")
         return grant
     except (jwt.PyJWTError, ValidationError, ValueError):
-        raise ServiceError(401, "service_auth", "Invalid or expired service authorization.") from None
+        raise ServiceError(
+            401, "service_auth", "Invalid or expired service authorization."
+        ) from None
 
 
 def authorize(scope: str):
@@ -88,7 +90,9 @@ def authorize(scope: str):
             or grant.target != target
             or str(grant.request_id) != request.state.request_id
         ):
-            raise ServiceError(403, "service_scope", "Service authorization does not cover this request.")
+            raise ServiceError(
+                403, "service_scope", "Service authorization does not cover this request."
+            )
         data = bytearray()
         async for segment in request.stream():
             if len(data) + len(segment) > BODY_LIMIT:

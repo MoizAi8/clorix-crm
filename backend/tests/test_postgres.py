@@ -38,8 +38,9 @@ def tenant(conn):
         "SELECT clorix_access.init_workspace(%s,'Engine test','private',null)",
         (actor,),
     ).fetchone()[0]
-    conn.execute("INSERT INTO leads(workspace_id,name) VALUES(%s,'Isolated engine lead')",
-                 (workspace,))
+    conn.execute(
+        "INSERT INTO leads(workspace_id,name) VALUES(%s,'Isolated engine lead')", (workspace,)
+    )
     return actor, workspace
 
 

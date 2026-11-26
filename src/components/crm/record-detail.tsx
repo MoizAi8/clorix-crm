@@ -94,7 +94,7 @@ export function RecordDetail({entity,id,...shared}:{entity:Entity;id:string}&Sha
           <strong>{event.stage_name}</strong><span>{dateTime(event.event_at,workspace.timezone,true)} · {event.actor} · {money(event.amount_minor,workspace.currency)}</span>
           {event.reason&&<p>{event.reason}</p>}</li>)}</ol>:<Empty title="No stage changes recorded"/>}</section>}
       {dialog==="edit"&&<RecordForm {...shared} entity={entity} row={row} close={close}/>}
-      {dialog==="move"&&stages.data&&<MoveDeal {...shared} deal={row} stages={stages.data} close={close}/>}
+      {dialog==="move"&&stages.data&&<MoveDeal {...shared} deal={row} stages={stages.data.filter(stage=>stage.pipeline_id===(row.pipeline_id??null))} close={close}/>}
       {dialog==="convert"&&<ConvertLead {...shared} lead={row} close={close}/>}
       {(dialog==="activity"||dialog==="task")&&related&&<RecordForm {...shared} entity={dialog==="activity"?"activities":"tasks"} prefill={{[related]:id}} close={close}/>}
       {dialog==="purge"&&<Dialog title="Permanently delete draft lead" onClose={()=>{if(!busy)close();}}>

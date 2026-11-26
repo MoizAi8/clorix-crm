@@ -21,10 +21,11 @@ await mkdir("artifacts/private",{recursive:true});
 await writeFile(sandboxFile,"[]");
 try {
   await pool.query("INSERT INTO clorix_access.registration(token_hash,intended_email,workspace_name,expires_at) VALUES($1,$2,$3,now()+interval '30 minutes')",[tokenHash,email,title]);
-  const args=["node_modules/@playwright/test/cli.js","test",...(hosted?["--grep-invert","@local"]:[])];
+  const args=["node_modules/@playwright/test/cli.js","test",...(hosted?["--grep-invert","@local"]:[]),...(process.env.CLORIX_ENGINE_BROWSER_ONLY==="1"?["--grep","@advanced"]:[])];
   const result=spawnSync(process.execPath,args,{
     stdio:["ignore","inherit","inherit"],
     env:{...process.env,DIRECT_DATABASE_URL:"",DATABASE_URL:"",AUTH_SECRET:"",DEMO_RATE_LIMIT_SECRET:"",
+      CLORIX_ENGINE_DATABASE_URL:"",CLORIX_ENGINE_SIGNING_KEY:"",
       ...(hosted?{CLORIX_TEST_ORIGIN:origin}:{}),CLORIX_TEST_PRIVATE_INVITE:invite.href,
       CLORIX_TEST_PRIVATE_EMAIL:email,CLORIX_TEST_PRIVATE_PASSWORD:password},
   });

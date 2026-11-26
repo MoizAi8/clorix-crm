@@ -42,7 +42,7 @@ export async function convert(context:Context,id:string,body:unknown) {
     contactId=(await insert(context,"contacts",{name:lead.name,email:lead.email,phone:lead.phone,company_id:companyId,
       owner_member_id:lead.owner_member_id??context.workspace.member_id})).id;
   }
-  const stage=(await context.client.query("SELECT id FROM pipeline_stages WHERE workspace_id=$1 AND sort_order=1",[context.workspace.id])).rows[0].id;
+  const stage=(await context.client.query("SELECT id FROM pipeline_stages WHERE workspace_id=$1 AND pipeline_id IS NULL AND kind='open' ORDER BY sort_order LIMIT 1",[context.workspace.id])).rows[0].id;
   const deal=await insert(context,"deals",{title:input.title,amount_minor:input.amount_minor,stage_id:stage,
     contact_id:contactId,company_id:companyId,lead_id:id,owner_member_id:lead.owner_member_id??context.workspace.member_id,
     rank:await nextRank(context.client,context.workspace.id,stage)});
@@ -62,9 +62,10 @@ export async function move(context:Context,id:string,body:unknown) {
   const deal=await get(context,"deals",id);
   requireActive(deal);
   compareVersion(deal,input.expected_version);
-  const stage=(await context.client.query<{id:string;name:string;kind:string}>(
-    "SELECT id,name,kind FROM pipeline_stages WHERE workspace_id=$1 AND id=$2",[context.workspace.id,input.stage_id])).rows[0];
+  const stage=(await context.client.query<{id:string;name:string;kind:string;pipeline_id:string|null}>(
+    "SELECT id,name,kind,pipeline_id FROM pipeline_stages WHERE workspace_id=$1 AND id=$2",[context.workspace.id,input.stage_id])).rows[0];
   if (!stage) throw new AppError(422,"stage","Choose a stage in this workspace.");
+  if ((deal.pipeline_id??null)!==stage.pipeline_id) throw new AppError(422,"pipeline","Choose a stage in this deal's pipeline.");
   const changed=deal.stage_id!==stage.id;
   if (changed && stage.kind==="lost" && !input.reason) throw new AppError(422,"reason","Enter a reason for closing this deal as lost.");
   if (input.before_id===id) return deal;

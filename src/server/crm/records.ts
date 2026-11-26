@@ -17,7 +17,7 @@ const joins:Record<Entity,string>={
   tasks:"",activities:' JOIN memberships m ON m.id=r.actor_member_id JOIN "user" u ON u.id=m.user_id',
 };
 const extra:Record<Entity,string>={
-  leads:"",contacts:",c.name AS company_name",companies:"",deals:",s.name AS stage_name,s.kind AS stage_kind,c.name AS company_name",
+  leads:"",contacts:",c.name AS company_name",companies:"",deals:",s.name AS stage_name,s.kind AS stage_kind,s.pipeline_id,c.name AS company_name",
   tasks:"",activities:",u.name AS actor_name",
 };
 const parents:Record<string,Entity|"memberships">={
@@ -94,7 +94,7 @@ export async function detail(context:Context,entity:Entity,id:string) {
     related.deals=[await get(context,"deals",String(record.converted_deal_id))];
   }
   const history=entity==="deals"?(await context.client.query(
-    'SELECT e.event_at,e.from_status,e.to_status,e.amount_minor,e.reason,b.name AS stage_name,u.name AS actor FROM deal_stage_events e JOIN pipeline_stages b ON b.id=e.to_stage_id JOIN memberships m ON m.id=e.actor_member_id JOIN "user" u ON u.id=m.user_id WHERE e.workspace_id=$1 AND e.deal_id=$2 ORDER BY e.event_at DESC,e.id LIMIT 50',
+    'SELECT e.event_at,e.from_status,e.to_status,e.amount_minor,e.reason,coalesce(e.to_stage_name,b.name) AS stage_name,u.name AS actor FROM deal_stage_events e JOIN pipeline_stages b ON b.id=e.to_stage_id JOIN memberships m ON m.id=e.actor_member_id JOIN "user" u ON u.id=m.user_id WHERE e.workspace_id=$1 AND e.deal_id=$2 ORDER BY e.event_at DESC,e.id LIMIT 50',
     [context.workspace.id,id])).rows:[];
   return {record,related,history};
 }
@@ -107,7 +107,7 @@ export async function choices(context:Context) {
   }
   result.members=(await context.client.query<{id:string;label:string}>(
     'SELECT m.id,u.name AS label FROM memberships m JOIN "user" u ON u.id=m.user_id WHERE m.workspace_id=$1 AND m.status=\'active\' ORDER BY u.name,m.id LIMIT 100',[context.workspace.id])).rows;
-  result.stages=(await context.client.query<{id:string;label:string}>("SELECT id,name AS label FROM pipeline_stages WHERE workspace_id=$1 AND kind='open' ORDER BY sort_order",[context.workspace.id])).rows;
+  result.stages=(await context.client.query<{id:string;label:string}>("SELECT s.id,coalesce(p.name||' · ','')||s.name AS label FROM pipeline_stages s LEFT JOIN sales_pipelines p ON p.id=s.pipeline_id WHERE s.workspace_id=$1 AND s.kind='open' ORDER BY s.pipeline_id NULLS FIRST,s.sort_order",[context.workspace.id])).rows;
   return result;
 }
 
@@ -167,7 +167,7 @@ export async function newRecord(context:Context,entity:Entity,body:unknown) {
   if (entity==="activities") raw.actor_member_id=context.workspace.member_id;
   if (entity==="tasks" && raw.status==="done") raw.completed_at=new Date();
   if (entity==="deals") {
-    const stage=(await context.client.query("SELECT id FROM pipeline_stages WHERE workspace_id=$1 AND kind='open' AND ($2::uuid IS NULL OR id=$2) ORDER BY sort_order LIMIT 1",
+    const stage=(await context.client.query("SELECT id FROM pipeline_stages WHERE workspace_id=$1 AND kind='open' AND (($2::uuid IS NULL AND pipeline_id IS NULL) OR id=$2) ORDER BY sort_order LIMIT 1",
       [context.workspace.id,raw.stage_id ?? null])).rows[0];
     if (!stage) throw new AppError(422,"stage","Choose an open stage in this workspace.");
     raw.stage_id=stage.id;

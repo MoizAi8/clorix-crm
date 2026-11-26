@@ -16,6 +16,9 @@ export function failed(error: unknown) {
   const databaseCode = (error as { code?: string } | null)?.code;
   if (databaseCode === "23503") error = new AppError(422, "relationship", "A selected record is unavailable in this workspace.");
   if (databaseCode === "23505") error = new AppError(409, "conflict", "A matching record already exists.");
+  if (databaseCode === "P0001" && (error as Error).message === "workflow_capacity") {
+    error = new AppError(429,"workflow_capacity","Evaluate pending workflows before adding more events.",60);
+  }
   if (databaseCode === "P0001" && (error as Error).message === "sandbox_capacity") {
     error = new AppError(429, "sandbox_capacity", "All sandbox slots are in use. Please try again later.", 3600);
   }

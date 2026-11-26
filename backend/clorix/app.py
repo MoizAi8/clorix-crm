@@ -10,7 +10,9 @@ from psycopg import Error as DatabaseError
 from psycopg_pool import PoolTimeout
 
 from clorix.db import Database
+from clorix.sales_api import router as sales_router
 from clorix.security import Call, ServiceError, authorize, request_id
+from clorix.workflow_api import router as workflow_router
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +29,12 @@ def create_app(dsn: str | None = None, signing_key: str | None = None) -> FastAP
             database.close()
 
     app = FastAPI(
-        title="Clorix Engine", version="2.0.0", docs_url=None, redoc_url=None,
-        openapi_url=None, lifespan=lifespan,
+        title="Clorix Engine",
+        version="2.0.0",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
     )
     app.state.signing_key = (
         os.environ.get("CLORIX_ENGINE_SIGNING_KEY", "") if signing_key is None else signing_key
@@ -55,8 +61,15 @@ def create_app(dsn: str | None = None, signing_key: str | None = None) -> FastAP
     @app.exception_handler(DatabaseError)
     @app.exception_handler(PoolTimeout)
     async def database_error(request: Request, exc: Exception):
-        logger.warning("Database operation failed request_id=%s type=%s",
-                       request.state.request_id, type(exc).__name__)
+        if isinstance(exc, DatabaseError) and exc.sqlstate in {"23505", "23503", "23514"}:
+            return error_response(
+                request, 409, "record_conflict", "The change conflicts with an existing record."
+            )
+        logger.warning(
+            "Database operation failed request_id=%s type=%s",
+            request.state.request_id,
+            type(exc).__name__,
+        )
         return error_response(request, 503, "engine_db", "Advanced data services are unavailable.")
 
     @app.get("/health")
@@ -66,14 +79,24 @@ def create_app(dsn: str | None = None, signing_key: str | None = None) -> FastAP
     @app.get("/v2/workspace")
     def workspace(call: Annotated[Call, Depends(authorize("workspace:read"))]):
         with database.context(call) as (_conn, tenant):
-            return {"data": {"currency": tenant.currency, "timezone": tenant.timezone,
-                             "role": tenant.role, "kind": tenant.kind}}
+            return {
+                "data": {
+                    "currency": tenant.currency,
+                    "timezone": tenant.timezone,
+                    "role": tenant.role,
+                    "kind": tenant.kind,
+                }
+            }
 
+    app.include_router(sales_router)
+    app.include_router(workflow_router)
     return app
 
 
 def error_response(request: Request, status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(
         status_code=status,
-        content={"error": {"code": code, "message": message, "requestId": request.state.request_id}},
+        content={
+            "error": {"code": code, "message": message, "requestId": request.state.request_id}
+        },
     )

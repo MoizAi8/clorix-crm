@@ -16,7 +16,7 @@ export type RecordRow = {
   amount_minor?:string; due_at?:string; occurred_at?:string; updated_at?:string; archived_at?:string;
 } & Record<string,unknown>;
 
-export type Stage={id:string;name:string;kind:"open"|"won"|"lost";sort_order:number;probability:number;count:number;amount_minor:string};
+export type Stage={id:string;pipeline_id:string|null;name:string;kind:"open"|"won"|"lost";sort_order:number;probability:number;count:number;amount_minor:string};
 export type SearchResult={id:string;entity:Entity;label:string};
 
 export function money(value:string|undefined,currency="USD") {

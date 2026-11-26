@@ -9,6 +9,8 @@ function command(executable,args,options={}) {
   return once(child,"exit").then(([status])=>{if(status!==0)throw Error(executable+" failed");});
 }
 
+const browser=process.argv.includes("--browser");
+let frontend;
 const engine=spawn(python,["-m","uvicorn","main:app","--host","127.0.0.1","--port","8812","--no-access-log","--app-dir","backend"],{stdio:"inherit"});
 try {
   let healthy=false;
@@ -18,13 +20,28 @@ try {
     if(!healthy)await delay(200);
   }
   if(!healthy)throw Error("Local Python health check failed.");
-  await command(python,["-m","pytest","-q"],{cwd:"backend",shell:false,env:process.env});
+  if (browser) {
+    frontend=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1"],{stdio:"inherit",env:{...process.env,SANDBOX_IP_DAILY_LIMIT:"20"}});
+    let frontendReady=false;
+    for(let i=0;i<30&&!frontendReady;i++) {
+      const response=await fetch("http://localhost:3000/api/v1/health",{signal:AbortSignal.timeout(1000)}).catch(()=>null);
+      frontendReady=response?.ok===true;
+      if(!frontendReady)await delay(300);
+    }
+    if(!frontendReady)throw Error("Local frontend health check failed.");
+    await command(process.execPath,["scripts/browser-test.mjs"],{
+      env:{...process.env,CLORIX_ENGINE_BROWSER_TEST:"1",CLORIX_ENGINE_BROWSER_ONLY:process.argv.includes("--advanced-only")?"1":""},
+    });
+  } else {
+    await command(python,["-m","pytest","-q"],{cwd:"backend",shell:false,env:process.env});
   await command(process.execPath,["--import","tsx","--test","tests/integration/engine.test.ts"],{
     env:{...process.env,CLORIX_ENGINE_TEST:"1"},
-  });
+    });
+  }
 } catch (error) {
   console.error(error.message);
   process.exitCode=1;
 } finally {
+  frontend?.kill();
   engine.kill();
 }

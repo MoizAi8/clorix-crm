@@ -11,15 +11,15 @@ export type Report = {
 };
 
 export async function stageTotals({client,workspace}:Context) {
-  return (await client.query<Stage>(`SELECT s.id,s.name,s.kind,s.sort_order,s.probability,
+  return (await client.query<Stage>(`SELECT s.id,s.name,s.kind,s.pipeline_id,s.sort_order,s.probability,
     count(d.id)::integer AS count,coalesce(sum(d.amount_minor),0)::text AS amount_minor
     FROM pipeline_stages s LEFT JOIN deals d ON d.workspace_id=s.workspace_id AND d.stage_id=s.id AND d.archived_at IS NULL
-    WHERE s.workspace_id=$1 GROUP BY s.id ORDER BY s.sort_order`,[workspace.id])).rows;
+    WHERE s.workspace_id=$1 GROUP BY s.id ORDER BY s.pipeline_id NULLS FIRST,s.sort_order`,[workspace.id])).rows;
 }
 
 export async function board(context:Context) {
   const stages=await stageTotals(context);
-  const deals=(await context.client.query<RecordRow>(`SELECT d.*,c.name AS company_name,s.name AS stage_name,s.kind AS stage_kind
+  const deals=(await context.client.query<RecordRow>(`SELECT d.*,c.name AS company_name,s.name AS stage_name,s.kind AS stage_kind,s.pipeline_id
     FROM deals d JOIN pipeline_stages s ON s.id=d.stage_id LEFT JOIN companies c ON c.id=d.company_id
     WHERE d.workspace_id=$1 AND d.archived_at IS NULL ORDER BY s.sort_order,d.rank,d.id LIMIT 1000`,[context.workspace.id])).rows;
   return {stages,deals};

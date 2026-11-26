@@ -14,7 +14,7 @@ try {
        WHERE n.nspname='public' AND c.relrowsecurity AND c.relforcerowsecurity AND c.relowner<>r.oid) AS forced_nonowner_tables
     FROM pg_roles r WHERE r.rolname=current_user`);
   if(result.runtime_role!=="clorix_runtime"||result.rolsuper||result.rolbypassrls||result.can_create||
-    result.can_bootstrap_any_workspace||result.leads_without_context||result.memberships_without_context||result.forced_nonowner_tables!==13) {
+    result.can_bootstrap_any_workspace||result.leads_without_context||result.memberships_without_context||result.forced_nonowner_tables<13) {
     throw new Error("Unexpected runtime privileges.");
   }
   console.log(JSON.stringify(result));

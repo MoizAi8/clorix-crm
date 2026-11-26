@@ -37,7 +37,8 @@ class Database:
                     "row_factory": dict_row,
                 },
             )
-            if dsn else None
+            if dsn
+            else None
         )
 
     def open(self) -> None:

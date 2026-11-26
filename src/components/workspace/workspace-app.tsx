@@ -4,12 +4,14 @@ import { useEffect,useState,type FormEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  Activity,BarChart3,BriefcaseBusiness,Building2,Check,ClipboardCheck,Columns3,FlaskConical,LayoutDashboard,
+  Activity,BarChart3,Bell,BriefcaseBusiness,Building2,Check,ClipboardCheck,Columns3,FlaskConical,LayoutDashboard,
   LogOut,Menu,Search,Settings as SettingsIcon,UserRoundPlus,Users,X,
 } from "lucide-react";
 import { api,messageOf } from "@/lib/client";
 import { entities,entityLabels,type Entity,type SearchResult } from "@/lib/crm";
 import { dateTime,Dialog,Empty,ErrorNotice,Loading,useLoad } from "@/components/ui/primitives";
+import { NotificationCenter, Workflows } from "@/components/advanced/workflows";
+import { PipelineSettings,SalesIntelligence } from "@/components/advanced/sales";
 import { Overview } from "@/components/reports/overview";
 import { RecordList } from "@/components/crm/records";
 import { RecordDetail } from "@/components/crm/record-detail";
@@ -56,7 +58,12 @@ function SearchDialog({workspace,onClose,navigate}:{workspace:string;onClose:()=
   </Dialog>;
 }
 
-export function WorkspaceApp() {
+const advancedNav=[
+  ["intelligence","Sales intelligence",BarChart3],["pipeline-settings","Pipeline settings",Columns3],
+  ["workflows","Workflow studio",Activity],["notifications","Notifications",Bell],
+] as const;
+
+export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
   const params=useSearchParams();
   const [revision,setRevision]=useState(0);
   const [menu,setMenu]=useState(false);
@@ -67,7 +74,8 @@ export function WorkspaceApp() {
   const {data,error}=useLoad<{workspaces:Workspace[];name:string}>("workspaces",undefined,revision,true);
   const workspace=data?.workspaces.find(space=>space.id===params.get("space"))??data?.workspaces[0];
   const selected=params.get("view")??"dashboard";
-  const view=nav.some(entry=>entry[0]===selected)||selected==="follow-up"?selected:"dashboard";
+  const view=nav.some(entry=>entry[0]===selected)||selected==="follow-up"||
+    advanced&&advancedNav.some(entry=>entry[0]===selected)?selected:"dashboard";
   const id=params.get("id");
   const create=params.get("new")==="1";
   const entity=entities.includes(view as Entity)?view as Entity:null;
@@ -110,7 +118,7 @@ export function WorkspaceApp() {
       <Link className="brand" href="/" aria-label="Clorix home"><span className="brand-mark"/><span>Clorix<span>.</span></span></Link>
       <button className="icon-button close-nav" aria-label="Close navigation" onClick={()=>setMenu(false)}><X size={20}/></button>
       <div className="side-workspace">{workspace?.name??"Workspace"}</div>
-      <nav aria-label="Workspace navigation">{nav.map(([key,label,Icon])=><button type="button" key={key}
+      <nav aria-label="Workspace navigation">{[...nav,...(advanced?advancedNav:[])].map(([key,label,Icon])=><button type="button" key={key}
         aria-current={(view===key||(view==="follow-up"&&key==="tasks"))?"page":undefined}
         className={view===key||(view==="follow-up"&&key==="tasks")?"active":undefined} onClick={()=>navigate(key)}><Icon size={18}/><span>{label}</span>
       </button>)}</nav>
@@ -136,7 +144,11 @@ export function WorkspaceApp() {
           <Empty title="No active workspace">Your sandbox may have expired or your workspace access changed.</Empty>
           <button className="button secondary" onClick={logout} disabled={leaving}>Sign out</button></div>:
           view==="dashboard"||view==="reports"||view==="follow-up"?<Overview key={shared.workspace.id+view} {...shared} reports={view==="reports"} followOnly={view==="follow-up"}/>:
-          view==="pipeline"?<Pipeline key={shared.workspace.id} {...shared}/>:
+          view==="pipeline"?<Pipeline key={shared.workspace.id} {...shared} advanced={advanced}/>:
+          view==="intelligence"?<SalesIntelligence key={shared.workspace.id} {...shared}/>:
+          view==="pipeline-settings"?<PipelineSettings key={shared.workspace.id} {...shared}/>:
+          view==="workflows"?<Workflows key={shared.workspace.id} {...shared}/>:
+          view==="notifications"?<NotificationCenter key={shared.workspace.id} {...shared}/>:
           view==="settings"?<Settings key={shared.workspace.id} {...shared}/>:
           entity&&id?<RecordDetail key={shared.workspace.id+entity+id} {...shared} entity={entity} id={id}/>:
           entity?<RecordList key={shared.workspace.id+entity} {...shared} entity={entity} create={create}/>:null}

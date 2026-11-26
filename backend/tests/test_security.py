@@ -15,10 +15,18 @@ def signed(scope="workspace:read", target="/v2/workspace", method="GET", body=b"
     request_id = str(uuid4())
     now = int(time())
     values = {
-        "iss": "clorix-gateway", "aud": "clorix-engine", "sub": str(uuid4()),
-        "workspace": str(uuid4()), "scope": scope, "jti": str(uuid4()),
-        "request_id": request_id, "method": method, "target": target,
-        "digest": sha256(body).hexdigest(), "iat": now, "exp": now + 35,
+        "iss": "clorix-gateway",
+        "aud": "clorix-engine",
+        "sub": str(uuid4()),
+        "workspace": str(uuid4()),
+        "scope": scope,
+        "jti": str(uuid4()),
+        "request_id": request_id,
+        "method": method,
+        "target": target,
+        "digest": sha256(body).hexdigest(),
+        "iat": now,
+        "exp": now + 35,
     } | extra
     return {
         "Authorization": "Bearer " + jwt.encode(values, KEY, algorithm="HS256"),
@@ -39,26 +47,39 @@ def test_public_health_reports_identity_only(client):
     assert response.headers["Cache-Control"] == "private, no-store"
 
 
-@pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer invalid"}, {"Authorization": "x"}])
+@pytest.mark.parametrize(
+    "headers", [{}, {"Authorization": "Bearer invalid"}, {"Authorization": "x"}]
+)
 def test_rejects_unauthorized_requests(client, headers):
     response = client.get("/v2/workspace", headers=headers)
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "service_auth"
 
 
-@pytest.mark.parametrize("claim", [
-    {"aud": "wrong"}, {"iss": "wrong"}, {"workspace": "invalid"},
-    {"iat": 100, "exp": 145}, {"exp": int(time()) + 100},
-    {"unexpected": "foreign"},
-])
+@pytest.mark.parametrize(
+    "claim",
+    [
+        {"aud": "wrong"},
+        {"iss": "wrong"},
+        {"workspace": "invalid"},
+        {"iat": 100, "exp": 145},
+        {"exp": int(time()) + 100},
+        {"unexpected": "foreign"},
+    ],
+)
 def test_rejects_invalid_claims(client, claim):
     assert client.get("/v2/workspace", headers=signed(**claim)).status_code == 401
 
 
-@pytest.mark.parametrize("claim", [
-    {"scope": "unrelated"}, {"method": "POST"}, {"target": "/x"},
-    {"request_id": str(uuid4())},
-])
+@pytest.mark.parametrize(
+    "claim",
+    [
+        {"scope": "unrelated"},
+        {"method": "POST"},
+        {"target": "/x"},
+        {"request_id": str(uuid4())},
+    ],
+)
 def test_rejects_wrong_binding(client, claim):
     assert client.get("/v2/workspace", headers=signed(**claim)).status_code == 403
 
