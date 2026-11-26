@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from psycopg import Error as DatabaseError
 from psycopg_pool import PoolTimeout
 
+from clorix.attachments import router as attachment_router
 from clorix.billing_api import router as billing_router
 from clorix.copilot_api import router as copilot_router
 from clorix.db import Database
@@ -98,6 +99,7 @@ def create_app(dsn: str | None = None, signing_key: str | None = None) -> FastAP
     app.include_router(operations_router)
     app.include_router(copilot_router)
     app.include_router(productivity_router)
+    app.include_router(attachment_router)
     return app
 
 

@@ -243,9 +243,9 @@ function DocumentPreview({detail,shared,back,edit,payment,selected}:{detail:Deta
   </>;
 }
 
-export function Billing({recordId,...shared}:Shared&{recordId?:string}){
-  const [mode,setMode]=useState<Mode>("quotation");
-  const id=recordId??null;
+export function Billing({recordId,catalogOnly=false,...shared}:Shared&{recordId?:string;catalogOnly?:boolean}){
+  const [mode,setMode]=useState<Mode>(catalogOnly?"catalog":"quotation");
+  const id=catalogOnly?null:recordId??null;
   const setId=(value:string|null)=>shared.navigate("billing",value??undefined);
   const [editor,setEditor]=useState<"catalog"|"draft"|"payment"|"deal"|null>(null);
   const [item,setItem]=useState<Item|undefined>();
@@ -259,23 +259,23 @@ export function Billing({recordId,...shared}:Shared&{recordId?:string}){
     {id?current?.error?<><button className="plain-button" onClick={()=>setId(null)}>Back to billing</button><ErrorNotice message={current.error}/></>:
       detail?<DocumentPreview detail={detail} shared={shared} back={()=>setId(null)} edit={()=>setEditor("draft")}
         payment={()=>setEditor("payment")} selected={setId}/>:<Loading label="Loading document…"/>:<>
-      <Title title="Billing" description="Manage your catalog, quotations, invoices and recorded payments."
+      <Title title={catalogOnly?"Catalog item":"Billing"} description="Manage your catalog, quotations, invoices and recorded payments."
         actions={<>
           {mode==="invoice"&&<button className="button secondary" onClick={()=>setEditor("deal")}>Invoice from deal</button>}
           <button className="button primary" disabled={!data} onClick={()=>{setItem(undefined);setEditor(mode==="catalog"?"catalog":"draft");}}>
             <Plus size={18}/>{mode==="catalog"?"New catalog item":"New "+mode}</button>
         </>}/>
-      <nav className="advanced-tabs" aria-label="Billing views">{(["quotation","invoice","catalog"] as const).map(tab=>
+      {catalogOnly?<button className="plain-button back-link" onClick={()=>shared.navigate("billing")}>Back to billing</button>:<nav className="advanced-tabs" aria-label="Billing views">{(["quotation","invoice","catalog"] as const).map(tab=>
         <button type="button" className="button secondary" aria-pressed={mode===tab} key={tab}
-          onClick={()=>{setMode(tab);setQuery("");}}>{tab==="catalog"?"Catalog":tab==="invoice"?"Invoices":"Quotations"}</button>)}</nav>
+          onClick={()=>{setMode(tab);setQuery("");}}>{tab==="catalog"?"Catalog":tab==="invoice"?"Invoices":"Quotations"}</button>)}</nav>}
       {error?<ErrorNotice message={error} action={shared.refresh}/>:!data?<Loading/>:<>
         {mode==="invoice"&&<div className="kpis">{([["Invoiced",data.totals.invoiced_minor],["Collected",data.totals.collected_minor],
           ["Outstanding",data.totals.outstanding_minor],["Overdue balances",data.totals.overdue_minor]]).map(([name,value])=>
           <article className="surface kpi" key={name}><div><span>{name}</span></div><strong>{money(value,data.currency)}</strong></article>)}</div>}
         <section className="surface report-card"><div className="advanced-filters">
           <label>Search {mode==="catalog"?"catalog":mode+"s"}<input value={query} onChange={event=>setQuery(event.target.value)} maxLength={100}/></label>
-        </div>{mode==="catalog"?data.catalog.filter(row=>matches(row.name+" "+row.sku+" "+row.category)).length?
-          <div className="advanced-list">{data.catalog.filter(row=>matches(row.name+" "+row.sku+" "+row.category)).map(row=><article key={row.id}>
+        </div>{mode==="catalog"?data.catalog.filter(row=>(!catalogOnly||!recordId||recordId===row.id)&&matches(row.name+" "+row.sku+" "+row.category)).length?
+          <div className="advanced-list">{data.catalog.filter(row=>(!catalogOnly||!recordId||recordId===row.id)&&matches(row.name+" "+row.sku+" "+row.category)).map(row=><article key={row.id}>
             <div className="advanced-row"><strong>{row.name}</strong><span className="pill">{row.active?"Active":"Inactive"}</span>
               <span>{money(row.price_minor,data.currency)}</span><button className="button secondary" onClick={()=>{setItem(row);setEditor("catalog");}}>Edit</button></div>
             <p>{row.sku} · {labelFor(row.kind)}{row.category?" · "+row.category:""}</p></article>)}</div>:<Empty title="No catalog items"/>:

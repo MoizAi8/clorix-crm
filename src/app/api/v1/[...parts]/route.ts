@@ -4,7 +4,7 @@ import { convert,move } from "@/server/crm/lifecycle";
 import { entityType,identifier } from "@/server/crm/validation";
 import { db } from "@/server/db";
 import { AppError,failed,jsonBody,payload,requireOrigin } from "@/server/http";
-import { bodyLimit,commit,exportCsv,preview } from "@/server/imports";
+import { bodyLimit,columns,commit,exportCsv,preview } from "@/server/imports";
 import { board,report,stageTotals } from "@/server/reporting";
 import { search } from "@/server/search";
 import { actorContext,withWorkspace,workspaces } from "@/server/workspace/context";
@@ -62,6 +62,7 @@ async function handle(request:Request,route:RouteContext) {
       }
       if (head==="members" && parts.length===2 && method==="PATCH") return payload(await updateMember(context,identifier.parse(id),body));
       if (head==="imports" && parts.length===2 && method==="POST") {
+        if (id==="columns") return payload(columns(body));
         if (id==="preview") return payload(await preview(context,body));
         if (id==="commit") return payload(await commit(context,body),undefined,201);
       }
@@ -89,7 +90,7 @@ async function handle(request:Request,route:RouteContext) {
         if (action==="move" && entity==="deals") return payload(await move(context,key,body));
       }
       throw new AppError(404,"route","Action unavailable.");
-    },write && !(head==="imports" && id==="preview"));
+    },write && !(head==="imports" && (id==="preview"||id==="columns")));
   } catch (error) {
     return failed(error);
   }

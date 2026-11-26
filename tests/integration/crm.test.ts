@@ -184,6 +184,32 @@ test("PostgreSQL-backed CRM and access contract",async t=>{
     assert.doesNotMatch((await request("GET","exports/contacts",undefined,b.cookie,b.workspace)).data,/import-check/);
   });
 
+  await t.test("mapped companies and deals validate destinations and sign exact column mappings",async()=>{
+    const csv="Organization,Homepage,Private Notes\nMapped Fictional Studio,https://mapped.clorix.example,Imported note\n";
+    const source={entity:"companies",duplicate:"skip",csv};
+    assert.deepEqual((await auth("POST","imports/columns",{entity:"companies",csv})).data.data.head,["Organization","Homepage","Private Notes"]);
+    assert.equal((await auth("POST","imports/preview",{...source,mapping:{Organization:"name",Homepage:"name"}})).status,422);
+    assert.equal((await auth("POST","imports/preview",{...source,mapping:{Organization:"name",Homepage:"workspace_id"}})).status,422);
+    const input={...source,mapping:{Organization:"name",Homepage:"website",["Private Notes"]:"notes"}};
+    const preview=await auth("POST","imports/preview",input);
+    assert.equal(preview.data.data.count,1);
+    const payload={...input,token:preview.data.data.token,key:randomUUID()};
+    assert.equal((await auth("POST","imports/commit",{...payload,mapping:{Organization:"name",Homepage:"notes"}})).status,409);
+    const first=await auth("POST","imports/commit",payload);
+    assert.deepEqual(first.data.data,{created:1,skipped:0});
+    assert.match((await auth("GET","exports/companies?q=Mapped%20Fictional")).data,/Imported note/);
+
+    const deal={entity:"deals",duplicate:"skip",csv:"Opportunity,Cents\nMapped Fictional Deal,11285\n",mapping:{Opportunity:"title",Cents:"amount_minor"}};
+    const dealPreview=await auth("POST","imports/preview",deal);
+    assert.equal(dealPreview.data.data.count,1);
+    const created=await auth("POST","imports/commit",{...deal,key:randomUUID(),token:dealPreview.data.data.token});
+    assert.equal(created.status,201,JSON.stringify(created.data));
+    const deals=await auth("GET","deals?q=Mapped%20Fictional%20Deal");
+    assert.equal(deals.data.data[0].amount_minor,"11285");
+    const record=await auth("GET","deals/"+deals.data.data[0].id);
+    assert.equal(record.data.data.history.length,1);
+  });
+
   await t.test("draft deletion preserves referenced leads and respects versions",async()=>{
     const result=await auth("POST","leads",{name:"Disposable unlinked draft"});
     assert.equal(result.status,201);

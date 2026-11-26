@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 from clorix.mutations import require_owner
 from clorix.productivity import campaigns
-from clorix.productivity_inputs import ReportRequest
+from clorix.productivity_inputs import ReportRequest, ReportSelection
 from clorix.sales import snapshot
 from clorix.security import ServiceError
 
@@ -20,9 +20,9 @@ QUERIES = {
     "deal_stage": (
         "money",
         """
-        SELECT s.name||' · '||p.name AS label,sum(d.amount_minor)::text AS value
+        SELECT s.name||' · '||coalesce(p.name,'Default pipeline') AS label,sum(d.amount_minor)::text AS value
         FROM deals d JOIN pipeline_stages s ON s.workspace_id=d.workspace_id AND s.id=d.stage_id
-        JOIN sales_pipelines p ON p.workspace_id=s.workspace_id AND p.id=s.pipeline_id
+        LEFT JOIN sales_pipelines p ON p.workspace_id=s.workspace_id AND p.id=s.pipeline_id
         WHERE d.workspace_id=%s AND d.created_at >= %s AND d.created_at < %s
           AND d.archived_at IS NULL GROUP BY 1 ORDER BY sum(d.amount_minor) DESC,1 LIMIT 100
     """,
@@ -169,4 +169,59 @@ def audit_history(conn, tenant, selection):
             selection.record_id,
             selection.record_id,
         ),
+    ).fetchall()
+
+
+DETAIL_QUERIES = {
+    "lead_source": """
+        SELECT l.id,l.name AS label,'leads' AS destination FROM leads l
+        WHERE l.workspace_id=%(workspace)s AND l.created_at>=%(start)s AND l.created_at<%(end)s
+          AND l.archived_at IS NULL AND coalesce(nullif(l.source,''),'Unspecified')=%(group)s
+        ORDER BY l.created_at DESC,l.id LIMIT 50
+    """,
+    "deal_stage": """
+        SELECT d.id,d.title AS label,'deals' AS destination
+        FROM deals d JOIN pipeline_stages s ON s.workspace_id=d.workspace_id AND s.id=d.stage_id
+        LEFT JOIN sales_pipelines p ON p.workspace_id=s.workspace_id AND p.id=s.pipeline_id
+        WHERE d.workspace_id=%(workspace)s AND d.created_at>=%(start)s AND d.created_at<%(end)s
+          AND d.archived_at IS NULL AND s.name||' · '||coalesce(p.name,'Default pipeline')=%(group)s
+        ORDER BY d.created_at DESC,d.id LIMIT 50
+    """,
+    "booked_month": """
+        SELECT d.id,d.title AS label,'deals' AS destination
+        FROM deals d JOIN pipeline_stages s ON s.workspace_id=d.workspace_id AND s.id=d.stage_id
+        WHERE d.workspace_id=%(workspace)s AND d.actual_closed_at>=%(start)s AND d.actual_closed_at<%(end)s
+          AND d.archived_at IS NULL AND s.kind='won' AND to_char(timezone(%(zone)s,d.actual_closed_at),'YYYY-MM')=%(group)s
+        ORDER BY d.actual_closed_at DESC,d.id LIMIT 50
+    """,
+    "invoice_status": """
+        SELECT id,subject AS label,'billing' AS destination FROM billing_documents
+        WHERE workspace_id=%(workspace)s AND created_at>=%(start)s AND created_at<%(end)s
+          AND kind='invoice' AND status=%(group)s
+        ORDER BY created_at DESC,id LIMIT 50
+    """,
+    "support_status": """
+        SELECT id,subject AS label,'support' AS destination FROM support_tickets
+        WHERE workspace_id=%(workspace)s AND created_at>=%(start)s AND created_at<%(end)s AND status=%(group)s
+        ORDER BY created_at DESC,id LIMIT 50
+    """,
+}
+
+
+def report_records(conn, tenant, spec: ReportSelection):
+    valid_range(spec)
+    if spec.dimension not in DETAIL_QUERIES:
+        raise ServiceError(
+            422, "report_details", "Record drill-down is unavailable for this measure."
+        )
+    zone = ZoneInfo(tenant.timezone)
+    return conn.execute(
+        DETAIL_QUERIES[spec.dimension],
+        {
+            "workspace": tenant.id,
+            "group": spec.group,
+            "zone": tenant.timezone,
+            "start": datetime.combine(spec.starts_on, time.min, zone),
+            "end": datetime.combine(spec.ends_on + timedelta(days=1), time.min, zone),
+        },
     ).fetchall()

@@ -11,6 +11,7 @@ import { api,messageOf } from "@/lib/client";
 import { entities,entityLabels,type Entity,type SearchResult } from "@/lib/crm";
 import { dateTime,Dialog,Empty,ErrorNotice,Loading,useLoad } from "@/components/ui/primitives";
 import { Copilot } from "@/components/advanced/copilot";
+import { useEngineData } from "@/components/advanced/use-engine-data";
 import { Productivity } from "@/components/advanced/productivity";
 import { Billing } from "@/components/advanced/billing";
 import { SalesCalendar,Support,TeamPerformance } from "@/components/advanced/operations";
@@ -31,19 +32,48 @@ const nav=[
   ["settings","Settings",SettingsIcon],
 ] as const;
 
-function finderLink(result:SearchResult) { return entityLabels[result.entity].many; }
+type CommercialResult={id:string;entity:"quotation"|"invoice"|"catalog"|"support";label:string;qualifier:string};
+type FinderResult=SearchResult|CommercialResult;
+const categories={all:"All records",crm:"Core CRM",commercial:"Billing and catalog",support:"Support tickets"} as const;
+const commercialNames={quotation:"Quotations",invoice:"Invoices",catalog:"Catalog",support:"Support"};
+function finderLink(result:FinderResult) {
+  if("qualifier" in result) return commercialNames[result.entity]+" · "+result.qualifier;
+  return entityLabels[result.entity].many;
+}
 
-function SearchDialog({workspace,onClose,navigate}:{workspace:string;onClose:()=>void;navigate:Shared["navigate"]}) {
+function highlighted(label:string,query:string) {
+  const index=label.toLowerCase().indexOf(query.toLowerCase());
+  if(index<0||!query)return label;
+  return <>{label.slice(0,index)}<mark>{label.slice(index,index+query.length)}</mark>{label.slice(index+query.length)}</>;
+}
+
+function SearchDialog({shared,onClose,advanced}:{shared:Shared;onClose:()=>void;advanced:boolean}) {
+  const {workspace,navigate}=shared;
   const [text,setText]=useState("");
   const [query,setQuery]=useState("");
   const [active,setActive]=useState(0);
+  const [category,setCategory]=useState<keyof typeof categories>("all");
   useEffect(()=>{
     const timer=window.setTimeout(()=>{setQuery(text.trim());setActive(0);},180);
     return ()=>window.clearTimeout(timer);
   },[text]);
-  const {data,error}=useLoad<SearchResult[]>(query.length>=2?"search?q="+encodeURIComponent(query):null,workspace);
-  const results=data??[];
-  const open=(result:SearchResult)=>{onClose();navigate(result.entity,result.id);};
+  const base=useLoad<SearchResult[]>(query.length>=2&&(category==="all"||category==="crm")?"search?q="+encodeURIComponent(query):null,workspace.id);
+  const commercial=useEngineData<CommercialResult[]>("commercial-search",
+    advanced&&query.length>=2&&category!=="crm"?{query,category}:null,shared);
+  const searchPending=category==="crm"||!advanced?!base.data&&!base.error:
+    category==="all"?(!base.data&&!base.error)||!commercial:!commercial;
+  const term=query.toLowerCase();
+  const rank=(result:FinderResult)=>{
+    const fields=[result.label,...("qualifier" in result?[result.qualifier]:[])].map(value=>value.toLowerCase());
+    return fields.includes(term)?0:fields.some(value=>value.startsWith(term))?1:2;
+  };
+  const results:FinderResult[]=[...(category==="all"||category==="crm"?base.data??[]:[]),...(category!=="crm"?commercial?.data??[]:[])]
+    .sort((first,second)=>rank(first)-rank(second)).slice(0,24);
+  const open=(result:FinderResult)=>{
+    onClose();
+    const route=result.entity==="quotation"||result.entity==="invoice"?"billing":result.entity;
+    navigate(route,result.id);
+  };
   function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();if(results[active])open(results[active]);}
   return <Dialog title="Search workspace" onClose={onClose} wide>
     <form className="search-dialog" onSubmit={submit}>
@@ -54,10 +84,14 @@ function SearchDialog({workspace,onClose,navigate}:{workspace:string;onClose:()=
             if(event.key==="ArrowDown"){event.preventDefault();setActive((active+1)%results.length);}
             if(event.key==="ArrowUp"){event.preventDefault();setActive((active+results.length-1)%results.length);}
           }}/></span></label>
-      {error?<ErrorNotice message={error}/>:query.length<2?<p className="muted">Enter at least two characters.</p>:!data?<Loading label="Searching…"/>:
-        results.length?<div className="search-results">{results.map((item,index)=><button key={item.id} type="button"
+      {advanced&&<label>Record category<select value={category} onChange={event=>{setCategory(event.target.value as keyof typeof categories);setActive(0);}}>
+        {Object.entries(categories).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>}
+      {(base.error||commercial?.error)&&<ErrorNotice message={base.error||commercial?.error||""}/>}
+      {query.length<2?<p className="muted">Enter at least two characters.</p>:
+        results.length?<div className="search-results">{results.map((item,index)=><button key={item.entity+item.id} type="button"
           className={index===active?"selected":undefined} onFocus={()=>setActive(index)} onClick={()=>open(item)}>
-          <strong>{item.label}</strong><small>{finderLink(item)}</small></button>)}</div>:<Empty title="No matching records"/>}
+          <strong>{highlighted(item.label,query)}</strong><small>{highlighted(finderLink(item),query)}</small></button>)}</div>:
+          searchPending?<Loading label="Searching…"/>:<Empty title="No matching records"/>}
     </form>
   </Dialog>;
 }
@@ -80,7 +114,7 @@ export function WorkspaceApp({advanced=false,copilot=false}:{advanced?:boolean;c
   const workspace=data?.workspaces.find(space=>space.id===params.get("space"))??data?.workspaces[0];
   const selected=params.get("view")??"dashboard";
   const view=nav.some(entry=>entry[0]===selected)||selected==="follow-up"||
-    advanced&&(advancedNav.some(entry=>entry[0]===selected)||(copilot&&selected==="copilot"))?selected:"dashboard";
+    advanced&&(advancedNav.some(entry=>entry[0]===selected)||selected==="catalog"||(copilot&&selected==="copilot"))?selected:"dashboard";
   const id=params.get("id");
   const create=params.get("new")==="1";
   const entity=entities.includes(view as Entity)?view as Entity:null;
@@ -155,6 +189,7 @@ export function WorkspaceApp({advanced=false,copilot=false}:{advanced?:boolean;c
           view==="workflows"?<Workflows key={shared.workspace.id} {...shared}/>:
           view==="notifications"?<NotificationCenter key={shared.workspace.id} {...shared}/>:
           view==="productivity"?<Productivity key={shared.workspace.id} {...shared}/>:
+          view==="catalog"?<Billing key={shared.workspace.id+(id??"")+"catalog"} {...shared} recordId={id??undefined} catalogOnly/>:
           view==="billing"?<Billing key={shared.workspace.id} {...shared} recordId={id??undefined}/>:
           view==="copilot"?<Copilot key={shared.workspace.id} {...shared}/>:
           view==="support"?<Support key={shared.workspace.id+(id??"")} {...shared} recordId={id??undefined}/>:
@@ -165,7 +200,7 @@ export function WorkspaceApp({advanced=false,copilot=false}:{advanced?:boolean;c
           entity?<RecordList key={shared.workspace.id+entity} {...shared} entity={entity} create={create} advanced={advanced}/>:null}
       </main>
     </div>
-    {search&&workspace&&<SearchDialog workspace={workspace.id} onClose={()=>setSearch(false)} navigate={navigate}/>}
+    {search&&shared&&<SearchDialog shared={shared} onClose={()=>setSearch(false)} advanced={advanced}/>}
     {notification&&<div className="toast" role="status"><Check size={19}/>{notification}<button type="button" className="icon-button" aria-label="Dismiss notification" onClick={()=>setNotification("")}><X size={17}/></button></div>}
   </div>;
 }

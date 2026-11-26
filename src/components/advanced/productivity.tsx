@@ -1,6 +1,7 @@
 "use client";
 
 import { useState,type FormEvent } from "react";
+import { csvCell } from "@/lib/csv";
 import { api,messageOf } from "@/lib/client";
 import { entityLabels,labelFor,majorUnits,minorUnits,money } from "@/lib/crm";
 import { dateTime,Dialog,Empty,ErrorNotice,Loading,Title,useLoad } from "@/components/ui/primitives";
@@ -18,6 +19,8 @@ type Rendered={subject:string;body:string};
 type Draft=Rendered&{id:string;template:string;contact:string;created_at:string};
 type Field={id:string;entity:"leads"|"contacts"|"companies"|"deals";name:string;data_type:string;options:string[];active:boolean;version:number};
 type ReportSpec={dimension:string;starts_on:string;ends_on:string};
+type ReportRecord={id:string;label:string;destination:string};
+const drillable=new Set(["lead_source","deal_stage","booked_month","invoice_status","support_status"]);
 type ReportData={kind:"money"|"count";currency:string;rows:{label:string;value:string}[]};
 type AuditRow={id:string;event_type:string;resource_type:string;resource_id:string|null;actor:string;created_at:string};
 
@@ -183,11 +186,6 @@ function TemplatePanel(shared:Shared) {
   </>;
 }
 
-function csvCell(input:string,numeric=false) {
-  const safe=!numeric&&/^[\s\uFEFF]*[=+@-]/.test(input)?"'"+input:input;
-  return '"'+safe.replaceAll('"','""')+'"';
-}
-
 function exportReport(data:ReportData,spec:ReportSpec) {
   const contents=["Group,"+csvCell(data.kind==="money"?"Minor units ("+data.currency+")":"Count"),
     ...data.rows.map(row=>csvCell(row.label)+","+csvCell(row.value,true))].join("\r\n")+"\r\n";
@@ -202,14 +200,17 @@ function ReportPanel(shared:Shared) {
   const initial={dimension:"lead_source",starts_on:now.slice(0,7)+"-01",ends_on:now};
   const [spec,setSpec]=useState<ReportSpec|null>(null);
   const [selected,setSelected]=useState<SavedPreset<ReportSpec>|null>(null);
+  const [group,setGroup]=useState<string|null>(null);
   const engine=useEngineData<ReportData>("report-builder",spec,shared);
+  const drill=useEngineData<ReportRecord[]>("report-records",spec&&group?{...spec,group}:null,shared);
   const presets=useLoad<SavedPreset<ReportSpec>[]>("advanced/saved-presets",workspace.id,revision);
   const editor=useEngineMutation(shared);
-  return <section className="surface report-card">
+  const max=engine?.data?.rows.reduce((value,row)=>Math.max(value,Number(row.value)),1)??1;
+  return <section className="surface report-card report-builder">
     <div className="card-title"><h2>Report builder</h2></div>
     <form key={JSON.stringify(spec)} className="advanced-filters" onSubmit={event=>{
       const values=formValues(event);
-      setSpec({dimension:String(values.dimension),starts_on:String(values.starts_on),ends_on:String(values.ends_on)});
+      setGroup(null);setSpec({dimension:String(values.dimension),starts_on:String(values.starts_on),ends_on:String(values.ends_on)});
     }}>
       <label>Measure<select name="dimension" defaultValue={(spec??initial).dimension}>{Object.entries(dimensions).map(([id,label])=>
         <option key={id} value={id}>{label}</option>)}</select></label>
@@ -220,15 +221,18 @@ function ReportPanel(shared:Shared) {
     <div className="advanced-filters">
       <label>Saved report<select value={selected?.id??""} onChange={event=>{
         const saved=presets.data?.find(item=>item.kind==="report"&&item.id===event.target.value)??null;
-        setSelected(saved);if(saved)setSpec(saved.specification);
+        setSelected(saved);setGroup(null);if(saved)setSpec(saved.specification);
       }}><option value="">Select a saved report</option>{presets.data?.filter(item=>item.kind==="report").map(item=>
         <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     </div>
     {spec&&engine?.data&&<>
-      <div className="card-title"><h3>{dimensions[spec.dimension]}</h3><button className="button secondary" onClick={()=>exportReport(engine.data!,spec)}>Export report CSV</button></div>
-      {engine.data.rows.length?<div className="table-wrap"><table><thead><tr><th scope="col">Group</th><th scope="col">Value</th></tr></thead>
-        <tbody>{engine.data.rows.map((row,index)=><tr key={row.label+index}><td>{row.label}</td><td>
-          {engine.data?.kind==="money"?money(row.value,engine.data.currency):row.value}</td></tr>)}</tbody></table></div>:<Empty title="No results in this date range"/>}
+      <div className="card-title"><div><h3>{dimensions[spec.dimension]}</h3><p>{spec.starts_on} to {spec.ends_on}</p></div>
+        <div className="actions"><button className="button secondary" onClick={()=>exportReport(engine.data!,spec)}>Export report CSV</button>
+          <button className="button secondary" onClick={()=>window.print()}>Print report</button></div></div>
+      {engine.data.rows.length?<div className="table-wrap"><table><thead><tr><th scope="col">Group</th><th scope="col">Value</th><th scope="col">Relative value</th></tr></thead>
+        <tbody>{engine.data.rows.map((row,index)=><tr key={row.label+index}><td>{drillable.has(spec.dimension)?<button className="row-link" onClick={()=>setGroup(row.label)}>{row.label}</button>:row.label}</td><td>
+          {engine.data?.kind==="money"?money(row.value,engine.data.currency):row.value}</td>
+          <td><meter min={0} max={100} value={Number(row.value)*100/max} aria-label={row.label+" relative to largest group"}/></td></tr>)}</tbody></table></div>:<Empty title="No results in this date range"/>}
       <form key={selected?.id??"new"} className="advanced-filters" onSubmit={event=>{
         const values=formValues(event);
         void editor.save("saved-presets",{id:selected?.id??null,version:selected?.version??0,name:values.name,kind:"report",specification:spec},
@@ -238,6 +242,11 @@ function ReportPanel(shared:Shared) {
         <button className="button secondary" disabled={editor.busy}>{selected?"Update saved report":"Save report"}</button>
       </form>
     </>}
+    {group&&<Dialog title={"Records for "+group} onClose={()=>setGroup(null)} wide>
+      {drill?.error?<ErrorNotice message={drill.error}/>:!drill?.data?<Loading label="Loading report records…"/>:
+        drill.data.length?<div className="report-list">{drill.data.map(row=><button key={row.id} onClick={()=>shared.navigate(row.destination,row.id)}>
+          <strong>{row.label}</strong><small>{labelFor(row.destination)}</small></button>)}</div>:<Empty title="No records available"/>}
+    </Dialog>}
     {spec&&!engine&&<Loading label="Calculating report…"/>}
     {(engine?.error||presets.error||editor.error)&&<ErrorNotice message={engine?.error||presets.error||editor.error}/>}
   </section>;

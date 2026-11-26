@@ -78,3 +78,10 @@ After each milestone record UTC timestamp, branch/SHA, changed modules, commands
 - Added a private allowlisted Gemini lab with regional and consent controls, fictional prompts, quotas, history and deletion. A mocked provider verified the lifecycle. No live Gemini key or approved reviewer has been configured for this checkpoint.
 - Passed 105 Python checks and the live local Next.js-to-FastAPI test. The suite fixed a UTC date boundary in the payment fixture. Rotated the two isolated local credentials that appeared in a prior fixture failure and added output redaction to the harness.
 - Hosted Vercel logs showed an incomplete CA trust store. The staged engine now supplies a bundled CA store for libpq's hostname-verified connection. The hosted database and productivity browser checks remain pending.
+
+## Clorix 2.0 release candidate — 2026-11-27 PKT
+
+- Hosted FastAPI checkpoint 3462223 passed a signed workspace read, tenant-scoped intelligence and a persisted Neon profile write. The endpoint rejected unauthenticated workspace requests. Recorded the measurements in `artifacts/visual-qa/staging-engine-verification.json`.
+- Added mapped CSV import and filtered export for the core record types, commercial and support results in the command palette, printable report charts and authorized report drill-down. Added bounded private attachments with forced downloads and no sandbox uploads. Applied migration 013 in both isolated environments.
+- The local runner passed 128 Python checks, 39 TypeScript unit checks, 16 TypeScript PostgreSQL checks, one live Next.js-to-FastAPI check and seven production-browser journeys. Verified uploads and bytes, search navigation and the new productivity workflow. The optional Gemini key and reviewer setup remain pending.
+- Vercel staging uses a separate frontend with the dedicated Neon staging database and staged FastAPI service. The staged frontend and latest engine bundle still require hosted browser acceptance before production promotion.

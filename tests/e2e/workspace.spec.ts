@@ -217,6 +217,22 @@ test("private invited registration and reload persistence",async({page})=>{
   await expect(page.getByRole("heading",{name:"Business overview"})).toBeVisible();
   await nav(page,"Leads").click();
   await expect(page.getByRole("button",{name:"Synthetic Private Record",exact:true})).toBeVisible();
+  if(process.env.CLORIX_ENGINE_BROWSER_TEST==="1") {
+    await page.getByRole("button",{name:"Synthetic Private Record",exact:true}).click();
+    await page.getByRole("button",{name:"Add attachment"}).click();
+    await dialog.getByLabel("Attachment file").setInputFiles({name:"verification.txt",mimeType:"text/plain",
+      buffer:Buffer.from("Synthetic verification bytes.")});
+    await dialog.getByRole("button",{name:"Upload attachment"}).click();
+    await expect(page.getByText("verification.txt",{exact:true})).toBeVisible();
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Download",exact:true}).click();
+    const file=await download;
+    expect(file.suggestedFilename()).toBe("verification.txt");
+    expect(await readFile((await file.path())!,"utf8")).toBe("Synthetic verification bytes.");
+    await page.getByRole("button",{name:"Delete attachment",exact:true}).click();
+    await dialog.getByRole("button",{name:"Delete file"}).click();
+    await expect(page.getByText("verification.txt",{exact:true})).toHaveCount(0);
+  }
 });
 
 test("advanced pipeline, explainable lead score, workflow execution and inbox @advanced",async({page})=>{
@@ -316,6 +332,12 @@ test("support ticket resolution, calendar and recorded team goal @advanced",asyn
   await dialog.getByLabel("Resolution note",{exact:true}).fill("Fictional resolution saved.");
   await dialog.getByRole("button",{name:"Save ticket",exact:true}).click();
   await expect(page.getByText("Fictional resolution saved.",{exact:true})).toBeVisible();
+  await page.keyboard.press("Control+k");
+  const finder=page.getByRole("dialog",{name:"Search workspace"});
+  await finder.getByLabel("Record category").selectOption("support");
+  await finder.getByRole("textbox",{name:"Search workspace records"}).fill("Fictional browser support");
+  await finder.getByRole("button",{name:/Fictional browser support request/}).click();
+  await expect(page.getByRole("heading",{name:/Fictional browser support request/,level:1})).toBeVisible();
   await screenshot(page,"advanced-support");
   await nav(page,"Calendar").click();
   await page.getByRole("button",{name:"New event",exact:true}).click();
@@ -329,4 +351,84 @@ test("support ticket resolution, calendar and recorded team goal @advanced",asyn
   await dialog.getByLabel("Target",{exact:false}).fill("120000.00");
   await dialog.getByRole("button",{name:"Save target",exact:true}).click();
   await expect(page.getByText(/\$120,000.00/)).toBeVisible();
+});
+
+
+test("campaigns, email drafts, reports, custom fields and saved views @advanced",async({page})=>{
+  test.skip(process.env.CLORIX_ENGINE_BROWSER_TEST!=="1","The advanced service is not configured for this browser run.");
+  await sandbox(page);
+  await nav(page,"Productivity").click();
+  const dialog=page.getByRole("dialog");
+  await page.getByRole("button",{name:"New campaign",exact:true}).click();
+  await dialog.getByLabel("Campaign name").fill("Fictional partner campaign");
+  await dialog.getByLabel("Channel",{exact:true}).fill("Partner");
+  await dialog.getByLabel("Actual cost").fill("125.50");
+  await dialog.getByRole("button",{name:"Save campaign"}).click();
+  await page.getByRole("button",{name:"Fictional partner campaign",exact:true}).click();
+  const lead=page.getByRole("combobox",{name:"Lead",exact:true});
+  await lead.locator("option").nth(1).waitFor({state:"attached"});
+  const leadName=(await lead.locator("option").nth(1).textContent())!;
+  await lead.selectOption({index:1});
+  await page.getByRole("button",{name:"Attribute lead"}).click();
+  await expect(page.getByRole("button",{name:"Remove attribution"})).toBeVisible();
+  await expect(page.getByText(/Cost per lead \$125.50/)).toBeVisible();
+
+  await page.getByRole("button",{name:"Email templates",exact:true}).click();
+  await page.getByRole("button",{name:"New template"}).click();
+  await dialog.getByLabel("Template name").fill("Partner follow-up");
+  await dialog.getByLabel("Category").fill("Follow-up");
+  await dialog.getByLabel("Subject").fill("Hello {{first_name}}");
+  await dialog.getByLabel("Body").fill("Fictional conversation with {{contact_name}}.");
+  await dialog.getByRole("button",{name:"Save template"}).click();
+  const contact=page.getByRole("combobox",{name:"Contact",exact:true});
+  await contact.locator("option").nth(1).waitFor({state:"attached"});
+  await contact.selectOption({index:1});
+  await page.getByRole("button",{name:"Preview draft",exact:true}).click();
+  await expect(page.getByRole("heading",{name:/Hello /})).toBeVisible();
+  await page.getByRole("button",{name:"Save draft",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Recent drafts"})).toBeVisible();
+
+  await page.getByRole("button",{name:"Custom fields",exact:true}).click();
+  await page.getByRole("button",{name:"New custom field"}).click();
+  await dialog.getByLabel("Field name").fill("Renewal context");
+  await dialog.getByRole("button",{name:"Save custom field"}).click();
+  await expect(page.getByRole("button",{name:"Renewal context",exact:true})).toBeVisible();
+  await nav(page,"Leads").click();
+  await page.getByRole("textbox",{name:"Search leads"}).fill(leadName);
+  await page.getByRole("button",{name:"Apply filters"}).click();
+  await page.getByRole("button",{name:"Save current filters"}).click();
+  await dialog.getByLabel("View name").fill("Partner leads");
+  await dialog.getByRole("button",{name:"Save view",exact:true}).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole("button",{name:leadName,exact:true}).click();
+  await page.getByRole("button",{name:"Set Renewal context",exact:true}).click();
+  await dialog.getByLabel("Renewal context").fill("Fictional account renewal");
+  await dialog.getByRole("button",{name:"Save value"}).click();
+  await expect(page.getByRole("button",{name:"Fictional account renewal",exact:true})).toBeVisible();
+
+  await nav(page,"Productivity").click();
+  await page.getByRole("button",{name:"Report builder",exact:true}).click();
+  await page.getByRole("button",{name:"Run report"}).click();
+  await page.getByRole("textbox",{name:"Report name"}).fill("Lead sources this month");
+  await page.getByRole("button",{name:"Save report",exact:true}).click();
+  await expect(page.getByRole("option",{name:"Lead sources this month",exact:true})).toBeAttached();
+  const download=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Export report CSV"}).click();
+  expect((await download).suggestedFilename()).toMatch(/^clorix-lead_source-.*\.csv$/);
+  await screenshot(page,"advanced-productivity");
+  await page.getByRole("table").getByRole("button").first().click();
+  await expect(page.getByRole("dialog",{name:/Records for /}).getByRole("button").nth(1)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button",{name:"Audit log",exact:true}).click();
+  await page.getByLabel("Resource type").fill("campaigns");
+  await page.getByRole("button",{name:"Filter audit log"}).click();
+  await expect(page.getByText("Campaigns",{exact:true}).last()).toBeVisible();
+
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole("button",{name:"Open navigation"}).click();
+  await expect(nav(page,"Productivity")).toBeVisible();
+  await nav(page,"Productivity").click();
+  await expect(page.getByRole("heading",{name:"Productivity",level:1})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await screenshot(page,"advanced-productivity-mobile");
 });

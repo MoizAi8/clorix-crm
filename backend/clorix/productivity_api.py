@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from clorix import productivity, reports
+from clorix.commercial_search import SearchSpec, search
 from clorix.inputs import parse
 from clorix.mutations import json_value
 from clorix.productivity_inputs import (
@@ -16,6 +17,7 @@ from clorix.productivity_inputs import (
     RecordField,
     RecordFieldRequest,
     ReportRequest,
+    ReportSelection,
 )
 from clorix.sales_api import execute
 from clorix.security import Call, authorize
@@ -109,3 +111,13 @@ def run_report(request: Request, call: Read):
 @router.post("/audit-history")
 def audit_history(request: Request, call: Audit):
     return read(request, call, reports.audit_history, parse(call, AuditRequest))
+
+
+@router.post("/commercial-search")
+def search_operations(request: Request, call: Read):
+    return read(request, call, search, parse(call, SearchSpec))
+
+
+@router.post("/report-records")
+def report_records(request: Request, call: Read):
+    return read(request, call, reports.report_records, parse(call, ReportSelection))

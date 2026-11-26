@@ -1,0 +1,10 @@
+{
+  "mode": "Local Next.js route handler calling hosted FastAPI and isolated Neon PostgreSQL",
+  "publicEngineHealth": "https://clorix-engine.vercel.app/health",
+  "engineCommit": "3462223182ab23cad8536d01ff39f94849d39e7d",
+  "signedReadMs": 2961,
+  "advancedAnalysisMs": 2967,
+  "anonymousRequestDenied": true,
+  "syntheticSandbox": true,
+  "persistedProfileWrite": true
+}

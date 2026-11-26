@@ -8,6 +8,7 @@ import { dateTime,Dialog,Empty,ErrorNotice,Loading,Title,useLoad } from "@/compo
 import type { Detail,Options,Shared } from "@/components/workspace/contracts";
 import { RecordForm,fields } from "./record-form";
 import { ConvertLead } from "./convert-lead";
+import { Attachments } from "@/components/advanced/attachments";
 import { hasCustomFields,RecordFields } from "@/components/advanced/record-fields";
 import { MoveDeal } from "@/components/pipeline/move-deal";
 
@@ -90,6 +91,7 @@ export function RecordDetail({entity,id,advanced=false,...shared}:{entity:Entity
           }):<Empty title="No related records yet"/>}
         </section>}
       </div>
+      {advanced&&workspace.kind==="private"&&hasCustomFields(entity)&&<Attachments {...shared} entity={entity} id={id} archived={Boolean(row.archived_at)}/>}
       {advanced&&hasCustomFields(entity)&&<RecordFields {...shared} entity={entity} id={id} archived={Boolean(row.archived_at)}/>}
       {entity==="deals"&&<section className="surface report-card"><div className="card-title"><div><h2>Stage history</h2><p>Recorded transitions and amount snapshots</p></div></div>
         {data.history.length?<ol className="timeline">{data.history.map((event,index)=><li key={event.event_at+"-"+index}>

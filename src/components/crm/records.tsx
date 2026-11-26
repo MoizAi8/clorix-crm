@@ -2,6 +2,7 @@
 
 import { useState,type FormEvent } from "react";
 import { ArrowDownToLine,ArrowLeft,ArrowRight,Check,FileUp,Plus,Search } from "lucide-react";
+import { importColumns,type ImportEntity } from "@/lib/csv";
 import { api,messageOf } from "@/lib/client";
 import { activityKinds,entityLabels,labelFor,leadStatuses,money,recordLabel,type Entity,type RecordRow,type Stage } from "@/lib/crm";
 import { dateTime,Empty,ErrorNotice,Loading,Title,useLoad } from "@/components/ui/primitives";
@@ -36,8 +37,8 @@ export function RecordList({entity,create,advanced=false,...shared}:{entity:Enti
   const list=useLoad<RecordRow[]>(entity+"?"+query.toString(),workspace.id,revision);
   const one=entityLabels[entity].one;
   const titles=entityLabels[entity].many;
-  const canImport=entity==="leads"||entity==="contacts";
-  const canExport=workspace.role==="owner"&&(canImport||entity==="deals");
+  const csvEntity=(entity==="leads"||entity==="contacts"||advanced&&Object.hasOwn(importColumns,entity))?entity as ImportEntity:null;
+  const canExport=workspace.role==="owner"&&(Boolean(csvEntity)||entity==="deals");
   const canAssign=["leads","contacts","deals","tasks"].includes(entity);
   const statusOptions=entity==="leads"?[...leadStatuses,"converted"]:entity==="tasks"?["open","done","overdue","today"]:
     entity==="activities"?[...activityKinds,"system"]:[];
@@ -85,7 +86,7 @@ export function RecordList({entity,create,advanced=false,...shared}:{entity:Enti
 
   return <>
     <Title title={titles} description={copy[entity]} actions={<>
-      {canImport&&<button className="button secondary" onClick={()=>setImporting(true)}><FileUp size={17}/>Import CSV</button>}
+      {csvEntity&&<button className="button secondary" onClick={()=>setImporting(true)}><FileUp size={17}/>Import CSV</button>}
       {canExport&&<button className="button secondary" onClick={download} disabled={exporting}><ArrowDownToLine size={17}/>Export CSV</button>}
       <button className="button primary" onClick={()=>setLocalCreate(true)}><Plus size={18}/>{entity==="activities"?"Log activity":"New "+one}</button>
     </>}/>
@@ -131,6 +132,6 @@ export function RecordList({entity,create,advanced=false,...shared}:{entity:Enti
     </section>
     {(create||localCreate)&&<RecordForm {...shared} entity={entity} close={()=>{setLocalCreate(false);if(create)navigate(entity);}}
       onSaved={row=>{setLocalCreate(false);navigate(entity,row.id);}}/>}
-    {importing&&canImport&&<CsvImport {...shared} entity={entity} close={()=>setImporting(false)}/>}
+    {importing&&csvEntity&&<CsvImport {...shared} entity={csvEntity} close={()=>setImporting(false)}/>}
   </>;
 }

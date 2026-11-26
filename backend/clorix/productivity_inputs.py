@@ -105,3 +105,7 @@ class AuditRequest(Input):
     event: Annotated[str, StringConstraints(max_length=80)] = ""
     entity: Annotated[str, StringConstraints(max_length=80)] = ""
     record_id: UUID | None = None
+
+
+class ReportSelection(ReportRequest):
+    group: Annotated[str, StringConstraints(min_length=1, max_length=250)]

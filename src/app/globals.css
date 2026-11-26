@@ -422,3 +422,15 @@ td { overflow-wrap: anywhere; }
 .field-options { display: grid; gap: 10px; border: 1px solid var(--clorix-border); border-radius: 8px; }
 .field-options label { display: flex; align-items: center; gap: 8px; }
 .field-options input { width: auto; }
+
+.search-results mark { background: var(--clorix-mint-wash); color: var(--clorix-forest); }
+
+.report-builder meter { width: min(140px, 25vw); accent-color: var(--clorix-forest); }
+@media print {
+  body:has(.report-builder) .app-shell { display: block; }
+  body:has(.report-builder) .sidebar, body:has(.report-builder) .topbar,
+  body:has(.report-builder) .workspace-content > :not(.report-builder),
+  .report-builder .advanced-filters, .report-builder .actions { display: none; }
+  body:has(.report-builder) .workspace-main, body:has(.report-builder) .workspace-content { padding: 0; }
+  .report-builder { box-shadow: none; }
+}

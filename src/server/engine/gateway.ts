@@ -5,7 +5,7 @@ import { quota } from "@/server/quotas";
 import { withWorkspace } from "@/server/workspace/context";
 
 type EngineIdentity={actor:string;workspace:string;country?:string};
-type Operation={method:"GET"|"POST"|"PATCH"|"DELETE";path:string;scope:string;binary?:boolean};
+type Operation={method:"GET"|"POST"|"PATCH"|"DELETE";path:string;scope:string;binary?:"pdf"|"attachment";bodyLimit?:number};
 
 const routes:Record<string,Operation>={
   "GET workspace":{method:"GET",path:"/v2/workspace",scope:"workspace:read"},
@@ -29,7 +29,7 @@ const routes:Record<string,Operation>={
   "POST billing-status":{method:"POST",path:"/v2/billing-status",scope:"billing:status"},
   "POST billing-generate":{method:"POST",path:"/v2/billing-generate",scope:"billing:generate"},
   "POST billing-payment":{method:"POST",path:"/v2/billing-payment",scope:"billing:payment"},
-  "POST billing-pdf":{method:"POST",path:"/v2/billing-pdf",scope:"billing:pdf",binary:true},
+  "POST billing-pdf":{method:"POST",path:"/v2/billing-pdf",scope:"billing:pdf",binary:"pdf"},
   "GET support":{method:"GET",path:"/v2/support",scope:"support:read"},
   "POST support":{method:"POST",path:"/v2/support",scope:"support:write"},
   "POST support-detail":{method:"POST",path:"/v2/support-detail",scope:"support:detail"},
@@ -50,8 +50,14 @@ const routes:Record<string,Operation>={
   "POST record-field":{method:"POST",path:"/v2/record-field",scope:"field-value:write"},
   "GET saved-presets":{method:"GET",path:"/v2/saved-presets",scope:"productivity:read"},
   "POST saved-presets":{method:"POST",path:"/v2/saved-presets",scope:"preset:write"},
+  "POST report-records":{method:"POST",path:"/v2/report-records",scope:"productivity:read"},
   "POST report-builder":{method:"POST",path:"/v2/report-builder",scope:"productivity:read"},
+  "POST commercial-search":{method:"POST",path:"/v2/commercial-search",scope:"productivity:read"},
   "POST audit-history":{method:"POST",path:"/v2/audit-history",scope:"audit:read"},
+  "POST attachments-list":{method:"POST",path:"/v2/attachments-list",scope:"attachment:read"},
+  "POST attachment-upload":{method:"POST",path:"/v2/attachment-upload",scope:"attachment:upload",bodyLimit:351_000},
+  "POST attachment-delete":{method:"POST",path:"/v2/attachment-delete",scope:"attachment:delete"},
+  "POST attachment-download":{method:"POST",path:"/v2/attachment-download",scope:"attachment:read",binary:"attachment"},
   "GET copilot":{method:"GET",path:"/v2/copilot",scope:"copilot:read"},
   "POST copilot-ask":{method:"POST",path:"/v2/copilot-ask",scope:"copilot:ask"},
   "POST copilot-delete":{method:"POST",path:"/v2/copilot-delete",scope:"copilot:delete"},
@@ -90,7 +96,7 @@ export async function forward(request:Request,segments:string[]) {
   }
   const writes=operation.method!=="GET";
   if (writes) requireOrigin(request);
-  const body=writes ? JSON.stringify(await jsonBody(request,32_768)) : "";
+  const body=writes ? JSON.stringify(await jsonBody(request,operation.bodyLimit??32_768)) : "";
   const principal=await withWorkspace(request,async ({user,workspace})=>({actor:user.id,workspace:workspace.id}));
   const country=request.headers.get("x-vercel-ip-country");
   if(operation.scope.startsWith("copilot:")&&!copilotEnabled(principal.actor,country)) {
@@ -98,7 +104,9 @@ export async function forward(request:Request,segments:string[]) {
   }
   await quota(request,"engine-user",120,60,principal.actor);
   if (writes) await quota(request,"engine-write",40,60,principal.actor);
-  if (operation.binary) await quota(request,"engine-pdf",20,3600,principal.actor);
+  if (operation.binary==="pdf") await quota(request,"engine-pdf",20,3600,principal.actor);
+  if (operation.scope==="attachment:upload") await quota(request,"engine-attachment-upload",10,3600,principal.actor);
+  if (operation.binary==="attachment") await quota(request,"engine-attachment-download",45,3600,principal.actor);
   if (operation.scope==="workflow:evaluate") await quota(request,"engine-evaluate",6,60,principal.workspace);
   const base=new URL(process.env.CLORIX_ENGINE_URL!);
   if ((base.protocol!=="https:" && !(base.protocol==="http:"&&["localhost","127.0.0.1"].includes(base.hostname))) ||
@@ -129,13 +137,13 @@ export async function forward(request:Request,segments:string[]) {
     throw new AppError(503,"engine_response","Advanced services are temporarily unavailable.");
   }
   const type=response.headers.get("Content-Type");
-  if (!type?.startsWith(operation.binary?"application/pdf":"application/json")) {
+  if (!type?.startsWith(operation.binary==="pdf"?"application/pdf":operation.binary==="attachment"?"application/octet-stream":"application/json")) {
     throw new AppError(503,"engine_response","Advanced services returned an unexpected response.");
   }
   const disposition=response.headers.get("Content-Disposition");
   const attachment=disposition&&/^attachment; filename="clorix-(q|inv)-[0-9]{5,10}\\.pdf"$/.test(disposition)?disposition:'attachment; filename="clorix-document.pdf"';
   return new Response(response.body,{status:response.status,headers:{
     "Content-Type":type,"Cache-Control":"private, no-store","X-Request-Id":requestId,
-    ...(operation.binary?{"Content-Disposition":attachment}:{}),
+    ...(operation.binary?{"Content-Disposition":operation.binary==="pdf"?attachment:'attachment; filename="clorix-attachment"'}:{}),
   }});
 }

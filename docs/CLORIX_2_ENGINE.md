@@ -45,3 +45,25 @@ Line amounts use integer minor units and quantity measured in thousandths. Clori
 Quote and invoice numbers are unique within a workspace and document type. An accepted quote or eligible won deal can create one linked invoice, preserving the relationship under concurrent requests. Invoice statuses distinguish issued, unpaid, partial, overdue and paid. The branded PDF and browser print view use recorded amounts. PDFs support the standard font's Latin repertoire. Payments, quotations and resolution messages are recorded inside the CRM.
 
 Support tracks the first recorded team action and current resolution time. Internal notes are workspace-scoped. Customer health subtracts five points per open ticket up to 20 and ten points for any overdue outstanding invoice. Calendar ranges use the workspace IANA time zone and an exclusive local end date. Team performance reports booked value, lead conversion and workload by recorded owner, plus individual monthly targets.
+
+## Productivity, data and attachments
+
+Campaign outcomes use distinct attributed leads and converted leads. A lead can belong to one campaign. Won value is the exact sum of active won deals linked to those leads. Cost per lead divides recorded cost by the distinct count and rounds to a minor unit. Campaign reports use dates to select overlapping campaigns and show the total recorded won value for each selected campaign.
+
+Report periods use inclusive local dates and an exclusive start of the following day for timestamps. Weighted forecast reporting uses configured stage probabilities and scheduled open deals. The Sales Intelligence workspace separately applies its documented deal-risk adjustment. Customer health is a current snapshot with no historical replay. Authorized drill-down is available for source, deal stage, booked month, invoice status and ticket status. The browser can print reports and export values as formula-safe CSV.
+
+Email templates render a fixed placeholder vocabulary against authorized contact and related deal records. Preview is read-only. Saving creates an editable draft for manual use in an email client. Custom definitions are owner-maintained. Values follow the record, and saved views and reports belong to the individual workspace member. Audit history is owner-only in the gateway and through the engine role. Its entries show actions and resource identifiers without storing file contents or CRM field snapshots.
+
+CSV import accepts leads, contacts, companies, and deals. Column mapping uses an allowlist and is bound to the preview and commit. Email and company domain duplicates are checked again at write time. New deals start in the workspace default open stage. Exports include active filters and preserve exact minor units for commercial amounts.
+
+Private record attachments use bounded PostgreSQL storage. The service accepts up to 256 KB per file, 40 files and 2 MB per workspace. It checks magic bytes for PDF files, opens and verifies restricted PNG and JPEG formats, and checks UTF-8 text. Downloads require an active authenticated membership and use a forced attachment response. Sandbox uploads are disabled. File content is never stored in the public directory or Vercel runtime filesystem. Neon and Vercel publish current limits in their [storage notes](https://neon.com/blog/neon-free-plan-1-gb-per-project) and [function limits](https://vercel.com/docs/functions/limitations).
+
+## Gemini lab
+
+An optional Gemini lab uses the Google Gen AI SDK with explicit reviewer consent. Its API contract accepts fixture IDs and preset tasks. The server constructs the prompt from its fixed sample library and checks the returned context reference IDs. The lab does not expose tools that write CRM records.
+
+The staged Python service needs a free `CLORIX_GEMINI_API_KEY`, an available `CLORIX_GEMINI_MODEL`, and `CLORIX_GEMINI_ENABLED=true`. The staging frontend uses `CLORIX_GEMINI_FRONTEND=true` and `CLORIX_GEMINI_REVIEWER_IDS`. Approve each adult professional reviewer in a private workspace by matching the `copilot_reviewers` jurisdiction to the edge request country and leaving `revoked_at` empty. Keep the feature disabled if a requirement in the [Gemini API terms](https://ai.google.dev/gemini-api/terms) cannot be met. Test with a dedicated fictional private workspace.
+
+## External integrations
+
+Event capture, retries, deduplication and internal task and notification delivery are implemented. The external developer credential surface and outbound webhook delivery are deferred. External delivery requires a separately verified egress design, destination validation and safe operation within the free-tier workload.

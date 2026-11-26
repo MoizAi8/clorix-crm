@@ -3,17 +3,19 @@ import { parse } from "csv-parse/sync";
 import { z } from "zod";
 import { AppError } from "@/server/http";
 import type { Context } from "@/server/workspace/context";
-import { audit, insert, limitRecords, list } from "@/server/crm/records";
+import { audit, insert, limitRecords, list, newRecord } from "@/server/crm/records";
 import { schemas } from "@/server/crm/validation";
 
-const tables=z.enum(["leads","contacts"]);
-const exportTables=z.enum(["leads","contacts","deals"]);
+import { csvCell,importColumns } from "@/lib/csv";
+export { csvCell } from "@/lib/csv";
+
+const tables=z.enum(["leads","contacts","companies","deals"]);
 const mode=z.enum(["skip","error"]);
-const base=z.strictObject({entity:tables,csv:z.string(),duplicate:mode});
+const file=z.strictObject({entity:tables,csv:z.string()});
+const base=file.extend({duplicate:mode,mapping:z.record(z.string().min(1).max(200),z.string().min(1).max(40)).optional()});
 const confirm=base.extend({token:z.string().max(200),key:z.uuid()});
 const headersByTable = {
-  leads:["name","email","phone","company_name","source","status"],
-  contacts:["name","email","phone","title"],
+  ...importColumns,
   deals:["title","company_name","stage_name","amount_minor","expected_close_date","actual_closed_at"],
 };
 const settings=(key:string,value:number,limit:number)=>z.coerce.number().int().positive().max(limit).parse(process.env[key] ?? value);
@@ -23,13 +25,18 @@ function fileHash(csv:string) {
   return createHash("sha256").update(csv).digest("hex");
 }
 
+function selectionHash(input:z.infer<typeof base>) {
+  const mapping=input.mapping?Object.entries(input.mapping).sort(([left],[right])=>left.localeCompare(right)):null;
+  return fileHash(JSON.stringify([input.entity,input.duplicate,fileHash(input.csv),mapping]));
+}
+
 function signature(context:Context, input:z.infer<typeof base>,expiry:number) {
   const secret=process.env.DEMO_RATE_LIMIT_SECRET;
   if (!secret) throw Error("Import signing unavailable.");
-  return createHmac("sha256",secret).update(JSON.stringify([context.workspace.id,context.user.id,input.entity,input.duplicate,fileHash(input.csv),expiry])).digest();
+  return createHmac("sha256",secret).update(JSON.stringify([context.workspace.id,context.user.id,selectionHash(input),expiry])).digest();
 }
 
-async function scan(context:Context,input:z.infer<typeof base>) {
+function readFile(input:z.infer<typeof file>) {
   const maxBytes=settings("MAX_CSV_BYTES",262144,1048576);
   const maxRows=settings("MAX_CSV_ROWS",200,500);
   if (Buffer.byteLength(input.csv)>maxBytes) throw new AppError(413,"csv_size","The CSV exceeds the file size limit.");
@@ -37,22 +44,43 @@ async function scan(context:Context,input:z.infer<typeof base>) {
   try { all=parse(input.csv,{bom:true,skip_empty_lines:true,trim:true,max_record_size:15000}); }
   catch { throw new AppError(422,"csv_format","Could not parse the CSV. Check quoting and column counts."); }
   const [head,...rows]=z.array(z.array(z.string())).parse(all);
-  const allowed:string[]=headersByTable[input.entity];
-  if (!head?.includes("name") || head.some(header=>!allowed.includes(header)) || new Set(head).size!==head.length) {
-    throw new AppError(422,"csv_header","Add a name column and use only supported column names.");
+  if(!head?.length||head.length>40||head.some(header=>!header||header.length>200)||new Set(head).size!==head.length) {
+    throw new AppError(422,"csv_header","Provide 1 to 40 unique, nonempty column headings.");
   }
   if (!rows.length) throw new AppError(422,"csv_empty","The CSV has no data rows.");
   if (rows.length>maxRows) throw new AppError(413,"csv_rows","The CSV exceeds the row limit.");
+  return {head,rows};
+}
+
+export function columns(body:unknown) {
+  const input=file.parse(body);
+  const {head}=readFile(input);
+  return {head};
+}
+
+async function scan(context:Context,input:z.infer<typeof base>) {
+  const {head,rows}=readFile(input);
+  const allowed:readonly string[]=importColumns[input.entity];
+  const required=input.entity==="deals"?"title":"name";
+  const mapping=input.mapping??Object.fromEntries(head.map(header=>[header,header]));
+  const destinations=Object.values(mapping);
+  if(!destinations.includes(required)||new Set(destinations).size!==destinations.length||
+    Object.entries(mapping).some(([source,target])=>!head.includes(source)||!allowed.includes(target))) {
+    throw new AppError(422,"csv_header","Map the required "+required+" column and select each supported destination once.");
+  }
+  const duplicateField=input.entity==="deals"?null:input.entity==="companies"?"domain":"email";
   const seen=new Set<string>();
   const parsed=rows.map((row,index)=>{
-    const cells=Object.fromEntries(head.flatMap((header,column)=>row[column]?[ [header,row[column]] ]:[]));
+    const cells=Object.fromEntries(head.flatMap((header,column)=>row[column]&&Object.hasOwn(mapping,header)?[[mapping[header],row[column]]]:[]));
     return {line:index+2,check:schemas[input.entity].safeParse(cells)};
   });
-  const emails=parsed.flatMap(({check})=>check.success && check.data.email?[check.data.email]:[]);
-  if (emails.length) {
-    const existing=await context.client.query<{email:string}>(
-      `SELECT DISTINCT email FROM ${input.entity} WHERE workspace_id=$1 AND archived_at IS NULL AND email=ANY($2::text[])`,[context.workspace.id,emails]);
-    existing.rows.forEach(row=>seen.add(row.email));
+  const valueOf=(data:Record<string,unknown>)=>duplicateField?String(data[duplicateField]??""):"";
+  const identifiers=parsed.flatMap(({check})=>check.success&&valueOf(check.data)?[valueOf(check.data)]:[]);
+  if(duplicateField&&identifiers.length) {
+    const existing=await context.client.query<{value:string}>(
+      `SELECT DISTINCT ${duplicateField} AS value FROM ${input.entity} WHERE workspace_id=$1 AND archived_at IS NULL AND ${duplicateField}=ANY($2::text[])`,
+      [context.workspace.id,identifiers]);
+    existing.rows.forEach(row=>seen.add(row.value));
   }
   const errors:{line:number;message:string}[]=[];
   let skipped=0;
@@ -62,12 +90,13 @@ async function scan(context:Context,input:z.infer<typeof base>) {
       errors.push({line,message:(check.error.issues[0].path.join(".") || "Row")+" has an invalid value."});
       continue;
     }
-    if (check.data.email && seen.has(check.data.email)) {
+    const duplicateValue=valueOf(check.data);
+    if (duplicateValue && seen.has(duplicateValue)) {
       if (input.duplicate==="skip") skipped++;
-      else errors.push({line,message:"An active record or earlier row uses this email."});
+      else errors.push({line,message:"An active record or earlier row uses this "+duplicateField+"."});
       continue;
     }
-    if (check.data.email) seen.add(check.data.email);
+    if(duplicateValue) seen.add(duplicateValue);
     valid.push(check.data);
   }
   return {errors,skipped,valid};
@@ -83,7 +112,8 @@ export async function preview(context:Context,body:unknown) {
 
 export async function commit(context:Context,body:unknown) {
   const input=confirm.parse(body);
-  const hash=fileHash(JSON.stringify([context.user.id,input.entity,input.duplicate,fileHash(input.csv)]));
+  const hash=fileHash(JSON.stringify(input.mapping?[context.user.id,selectionHash(input)]:
+    [context.user.id,input.entity,input.duplicate,fileHash(input.csv)]));
   const key=fileHash(input.key);
   const existing=(await context.client.query("SELECT request_hash,result FROM idempotency_keys WHERE workspace_id=$1 AND operation='import' AND key_hash=$2",
     [context.workspace.id,key])).rows[0];
@@ -99,8 +129,15 @@ export async function commit(context:Context,body:unknown) {
   }
   const result=await scan(context,input);
   if (result.errors.length) throw new AppError(422,"csv_errors","Fix invalid rows and preview the file again.");
-  await limitRecords(context,result.valid.length);
-  for (const values of result.valid) await insert(context,input.entity,{...values,owner_member_id:context.workspace.member_id});
+  await limitRecords(context,result.valid.length*(input.entity==="deals"?2:1));
+  for(const values of result.valid) {
+    if(input.entity==="deals") await newRecord(context,"deals",values);
+    else {
+      const assignment=input.entity==="companies"?{}:{owner_member_id:context.workspace.member_id};
+      const row=await insert(context,input.entity,{...values,...assignment});
+      await audit(context,"create",input.entity,row.id);
+    }
+  }
   await audit(context,"csv_import",input.entity);
   const summary={created:result.valid.length,skipped:result.skipped};
   await context.client.query("DELETE FROM idempotency_keys WHERE workspace_id=$1 AND expires_at<=now()",[context.workspace.id]);
@@ -109,15 +146,9 @@ export async function commit(context:Context,body:unknown) {
   return summary;
 }
 
-export function csvCell(raw:unknown,numeric=false):string {
-  let value=raw===null || raw===undefined?"":raw instanceof Date?raw.toISOString():String(raw);
-  if (!numeric && (/^[\t\r\n]/.test(value) || /^\s*[=+\-@\t\r\n]/u.test(value))) value="'"+value;
-  return '"'+value.replaceAll('"','""')+'"';
-}
-
 export async function exportCsv(context:Context,raw:string,params:URLSearchParams) {
   if (context.workspace.role!=="owner") throw new AppError(403,"export","Only workspace owners may export records.");
-  const entity=exportTables.parse(raw);
+  const entity=tables.parse(raw);
   const headings=headersByTable[entity];
   const data=[headings.join(",")];
   const limit=settings("MAX_EXPORT_ROWS",1000,2000);

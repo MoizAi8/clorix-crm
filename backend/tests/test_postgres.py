@@ -636,3 +636,74 @@ def test_copilot_enforces_region_consent_and_history_with_mocked_provider(connec
                 assert call("copilot", "copilot:read").status_code == 403
         finally:
             owner.execute('DELETE FROM "user" WHERE id=%s', (actor,))
+
+
+def test_private_attachment_permissions_and_bytes(connections):
+    from base64 import b64encode
+
+    admin, runtime = connections
+    with psycopg.connect(admin, autocommit=True) as owner:
+        actor, workspace = tenant(owner)
+        other, foreign = tenant(owner)
+        lead = owner.execute("SELECT id FROM leads WHERE workspace_id=%s", (workspace,)).fetchone()[
+            0
+        ]
+        record = {"entity": "leads", "record_id": lead}
+        sample = b"Fictional attachment data for the QA check."
+        try:
+            owner.execute(
+                "INSERT INTO memberships(workspace_id,user_id,role) VALUES(%s,%s,'member')",
+                (workspace, other),
+            )
+            with TestClient(create_app(runtime, KEY)) as client:
+
+                def call(route, scope, body, *, subject=actor, space=workspace):
+                    return productivity_call(client, subject, space, route, scope, body)
+
+                status = call(
+                    "attachment-upload",
+                    "attachment:upload",
+                    {
+                        **record,
+                        "key": uuid4(),
+                        "filename": "../remarks.txt",
+                        "media_type": "text/plain",
+                        "contents": b64encode(sample).decode(),
+                    },
+                )
+                assert status.status_code == 200, status.text
+                file = {"id": status.json()["data"]["id"]}
+                listing = call("attachments-list", "attachment:read", record)
+                assert listing.status_code == 200, listing.text
+                row = listing.json()["data"][0]
+                assert row["filename"] == "remarks.txt" and row["size_bytes"] == len(sample)
+                assert row["can_delete"] and "contents" not in row
+                received = call("attachment-download", "attachment:read", file)
+                assert received.content == sample
+                assert received.headers["Content-Type"] == "application/octet-stream"
+                assert received.headers["Content-Disposition"].startswith("attachment")
+                assert received.headers["Cache-Control"] == "private, no-store"
+                assert (
+                    call(
+                        "attachment-download", "attachment:read", file, subject=other, space=foreign
+                    ).status_code
+                    == 404
+                )
+                assert (
+                    call(
+                        "attachment-delete",
+                        "attachment:delete",
+                        {**file, "key": uuid4()},
+                        subject=other,
+                    ).status_code
+                    == 404
+                )
+                assert (
+                    call(
+                        "attachment-delete", "attachment:delete", {**file, "key": uuid4()}
+                    ).status_code
+                    == 200
+                )
+                assert call("attachment-download", "attachment:read", file).status_code == 404
+        finally:
+            owner.execute('DELETE FROM "user" WHERE id IN (%s,%s)', (actor, other))

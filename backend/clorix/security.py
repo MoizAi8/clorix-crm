@@ -77,7 +77,7 @@ def decode_grant(token: str, key: str) -> Grant:
         ) from None
 
 
-def authorize(scope: str):
+def authorize(scope: str, *, body_limit: int = BODY_LIMIT):
     async def dependency(request: Request) -> Call:
         key = request.app.state.signing_key
         if len(key) < 32:
@@ -100,7 +100,7 @@ def authorize(scope: str):
             )
         data = bytearray()
         async for segment in request.stream():
-            if len(data) + len(segment) > BODY_LIMIT:
+            if len(data) + len(segment) > body_limit:
                 raise ServiceError(413, "body_size", "Request exceeds the size limit.")
             data.extend(segment)
         if not compare_digest(grant.digest, sha256(data).hexdigest()):

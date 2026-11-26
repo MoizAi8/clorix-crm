@@ -31,3 +31,5 @@ GRANT SELECT ON audit_events TO clorix_engine;
 DROP POLICY IF EXISTS engine_audit_owner ON audit_events;
 CREATE POLICY engine_audit_owner ON audit_events AS RESTRICTIVE FOR SELECT TO clorix_engine
   USING (clorix_access.authorized_member(workspace_id,true));
+
+GRANT SELECT,INSERT,DELETE ON record_attachments TO clorix_engine;
