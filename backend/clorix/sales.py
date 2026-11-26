@@ -288,7 +288,12 @@ def snapshot(conn, tenant) -> dict:
         conn.execute(
             """
         SELECT c.id,c.name,coalesce(p.lifecycle,'prospect') AS lifecycle,p.renewal_date,p.tags,
-          p.notes,p.version AS profile_version,a.last,a.recent
+          p.notes,p.version AS profile_version,a.last,a.recent,
+          (SELECT count(*) FROM support_tickets t WHERE t.workspace_id=c.workspace_id AND t.company_id=c.id AND t.status IN ('open','in_progress')) AS open_tickets,
+          EXISTS (SELECT 1 FROM billing_documents d WHERE d.workspace_id=c.workspace_id AND d.company_id=c.id
+            AND d.kind='invoice' AND d.status='issued' AND d.due_on<%s
+            AND d.total_minor>coalesce((SELECT sum(paid.amount_minor) FROM recorded_payments paid
+              WHERE paid.workspace_id=d.workspace_id AND paid.invoice_id=d.id),0)) AS overdue_balance
         FROM companies c LEFT JOIN customer_profiles p ON p.workspace_id=c.workspace_id AND p.company_id=c.id
         LEFT JOIN LATERAL (
           SELECT max(occurred_at) AS last,count(*) FILTER(WHERE occurred_at>=now()-interval '30 days') AS recent
@@ -297,7 +302,7 @@ def snapshot(conn, tenant) -> dict:
         WHERE c.workspace_id=%s AND c.archived_at IS NULL
         ORDER BY c.updated_at DESC,c.id LIMIT 2001
         """,
-            (tenant.id,),
+            (today, tenant.id),
         ).fetchall(),
         "customers",
     )
@@ -344,6 +349,27 @@ def snapshot(conn, tenant) -> dict:
             today,
             configuration["health"],
         )
+        penalty = min(20, item["open_tickets"] * 5) + (10 if item["overdue_balance"] else 0)
+        if penalty:
+            detail["score"] = max(0, detail["score"] - penalty)
+            if detail["classification"] != "review":
+                detail["classification"] = (
+                    "healthy"
+                    if detail["score"] >= 75
+                    else "watch"
+                    if detail["score"] >= 45
+                    else "at_risk"
+                )
+            detail["recommended"] = (
+                "Review outstanding invoices"
+                if item["overdue_balance"]
+                else "Resolve open support tickets"
+            )
+        detail |= {
+            "open_tickets": item["open_tickets"],
+            "overdue_balance": item["overdue_balance"],
+            "operations_penalty": penalty,
+        }
         health.append(
             {key: item[key] for key in ("id", "name", "lifecycle", "renewal_date", "last")}
             | {

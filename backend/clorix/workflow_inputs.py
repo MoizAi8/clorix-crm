@@ -17,11 +17,25 @@ Trigger = Literal[
     "task_overdue",
     "customer_inactive",
     "renewal_approaching",
+    "quotation_status_changed",
+    "invoice_due",
+    "support_created",
 ]
 FieldName = Literal[
-    "source", "score", "amount_minor", "stage", "owner_member_id", "priority", "health", "days"
+    "source",
+    "score",
+    "amount_minor",
+    "stage",
+    "owner_member_id",
+    "priority",
+    "health",
+    "days",
+    "invoice_status",
+    "ticket_status",
 ]
-Category = Literal["assignment", "deadline", "risk", "lead", "renewal", "workflow"]
+Category = Literal[
+    "assignment", "deadline", "risk", "lead", "renewal", "workflow", "support", "billing"
+]
 
 
 class Condition(Input):
@@ -63,4 +77,4 @@ class ReadNotification(Evaluate):
 
 
 class Preferences(Mutation):
-    categories: Annotated[list[Category], Field(max_length=6)]
+    categories: Annotated[list[Category], Field(max_length=8)]

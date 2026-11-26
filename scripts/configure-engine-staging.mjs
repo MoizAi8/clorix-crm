@@ -27,6 +27,7 @@ try {
       runtime.hostname=runtime.hostname.replace(".","-pooler.");
       runtime.username=role;
       runtime.password=passwords[index];
+      if(index===1)runtime.searchParams.set("sslrootcert","system");
       return runtime.href;
     });
     await writeFile(file,[

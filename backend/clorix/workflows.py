@@ -15,6 +15,9 @@ PREFIXES = {
     "task": "tasks",
     "customer": "companies",
     "renewal": "companies",
+    "support": "support",
+    "quotation": "billing",
+    "invoice": "billing",
 }
 NUMERIC = {"score", "health", "days", "amount_minor"}
 TRIGGER_FIELDS = {
@@ -22,8 +25,10 @@ TRIGGER_FIELDS = {
     "deals": {"amount_minor", "stage", "owner_member_id"},
     "tasks": {"priority", "owner_member_id"},
     "companies": {"health", "days"},
+    "support": {"priority", "ticket_status", "owner_member_id"},
+    "billing": {"invoice_status", "amount_minor", "days"},
 }
-CATEGORIES = ["assignment", "deadline", "risk", "lead", "renewal", "workflow"]
+CATEGORIES = ["assignment", "deadline", "risk", "lead", "renewal", "workflow", "support", "billing"]
 
 
 def _kind(trigger_type: str) -> str:
@@ -196,6 +201,8 @@ def _record_facts(conn, tenant, entity, record_id):
             """,
         "tasks": "SELECT priority,owner_member_id FROM tasks WHERE workspace_id=%s AND id=%s AND archived_at IS NULL",
         "companies": "SELECT id FROM companies WHERE workspace_id=%s AND id=%s AND archived_at IS NULL",
+        "support": "SELECT priority,status AS ticket_status,assignee_id AS owner_member_id,company_id FROM support_tickets WHERE workspace_id=%s AND id=%s",
+        "billing": "SELECT status AS invoice_status,total_minor AS amount_minor,company_id FROM billing_documents WHERE workspace_id=%s AND id=%s",
     }
     return conn.execute(selects[entity], (tenant.id, record_id)).fetchone()
 
@@ -265,6 +272,8 @@ def _actions(conn, tenant, workflow, event, facts):
                 record if entity == target else None
                 for target in ("leads", "contacts", "companies", "deals")
             ]
+            if entity in {"support", "billing"}:
+                refs[2] = facts["company_id"]
             if action == "task":
                 conn.execute(
                     """
@@ -437,6 +446,7 @@ def evaluate(conn, tenant):
     intelligence = snapshot(conn, tenant)
     today = intelligence["generated_for"]
     _intelligence_events(conn, tenant, groups, intelligence, today)
+    _invoice_events(conn, tenant, groups, today)
     outcomes = {"completed": 0, "failed": 0, "skipped": 0}
     selection = conn.execute(
         """
@@ -462,6 +472,40 @@ def evaluate(conn, tenant):
         )
     audit(conn, tenant, "evaluate_workflows", "automation", None)
     return {"events": len(selection), **outcomes}
+
+
+def _invoice_events(conn, tenant, groups, today):
+    records = conn.execute(
+        """
+        SELECT d.id,d.due_on,d.total_minor-paid.amount AS balance
+        FROM billing_documents d
+        CROSS JOIN LATERAL (SELECT coalesce(sum(p.amount_minor),0)::bigint AS amount
+          FROM recorded_payments p WHERE p.workspace_id=d.workspace_id AND p.invoice_id=d.id) paid
+        WHERE d.workspace_id=%s AND d.kind='invoice' AND d.status='issued'
+          AND d.total_minor>paid.amount AND d.due_on<=%s::date+7
+        ORDER BY d.due_on,d.id LIMIT 25
+        """,
+        (tenant.id, today),
+    ).fetchall()
+    for invoice in records:
+        days = (invoice["due_on"] - today).days
+        key = f"invoice-due:{invoice['id']}:{invoice['due_on']}:{int(days < 0)}"
+        title = "An invoice balance is overdue." if days < 0 else "An invoice balance is due soon."
+        _notify(conn, tenant, tenant.member_id, "billing", title, "billing", invoice["id"], key)
+        if "invoice_due" in groups:
+            _enqueue(
+                conn,
+                tenant,
+                "invoice_due",
+                "billing",
+                invoice["id"],
+                key,
+                {
+                    "days": max(days, 0),
+                    "invoice_status": "overdue" if days < 0 else "unpaid",
+                    "amount_minor": invoice["balance"],
+                },
+            )
 
 
 def _intelligence_events(conn, tenant, groups, intelligence, today: date):

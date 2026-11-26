@@ -12,7 +12,7 @@ const triggerLabels={
   lead_created:"Lead created",lead_qualified:"Lead qualified",lead_high_score:"Lead reaches hot score",
   deal_created:"Deal created",deal_stage_changed:"Deal stage changed",deal_won:"Deal won",deal_lost:"Deal lost",
   task_completed:"Task completed",task_overdue:"Task overdue",customer_inactive:"Customer inactive",
-  renewal_approaching:"Renewal approaching",
+  renewal_approaching:"Renewal approaching",quotation_status_changed:"Quotation status changed",invoice_due:"Invoice due",support_created:"Support ticket opened",
 } as const;
 type Trigger=keyof typeof triggerLabels;
 type Condition={field:string;compare:string;value:string};
@@ -26,12 +26,14 @@ const actions=[
   ["lead_priority","Set lead priority"],["lead_tag","Add lead tag"],["assign","Assign record"],
 ] as const;
 const numeric=["score","health","days","amount_minor"];
-const categories=["assignment","deadline","risk","lead","renewal","workflow"];
+const categories=["assignment","deadline","risk","lead","renewal","workflow","support","billing"];
 
 function entity(trigger:Trigger) {
   if(trigger.startsWith("lead"))return "leads";
   if(trigger.startsWith("deal"))return "deals";
   if(trigger.startsWith("task"))return "tasks";
+  if(trigger.startsWith("support"))return "support";
+  if(trigger.startsWith("invoice")||trigger.startsWith("quotation"))return "billing";
   return "companies";
 }
 
@@ -41,6 +43,8 @@ function fields(trigger:Trigger) {
   if(type==="leads")return ["source","priority","owner_member_id"];
   if(type==="deals")return ["stage","amount_minor","owner_member_id"];
   if(type==="tasks")return ["priority","owner_member_id"];
+  if(type==="support")return ["ticket_status","priority","owner_member_id"];
+  if(type==="billing")return trigger==="invoice_due"?["invoice_status","amount_minor","days"]:["invoice_status","amount_minor"];
   return ["health","days"];
 }
 
@@ -110,6 +114,11 @@ function WorkflowEditor({existing,shared,close}:{existing?:Definition;shared:Sha
 
 function PreviewWorkflow({rule,shared,close}:{rule:Definition;shared:Shared;close:()=>void}) {
   const {data:options}=useLoad<Options>("options",shared.workspace.id);
+  const type=entity(rule.trigger_type);
+  const support=useLoad<{tickets:{id:string;subject:string}[]}>(type==="support"?"advanced/support":null,shared.workspace.id).data;
+  const billing=useLoad<{documents:{id:string;kind:string;subject:string}[]}>(type==="billing"?"advanced/billing":null,shared.workspace.id).data;
+  const choices=type==="support"?support?.tickets.map(entry=>({id:entry.id,label:entry.subject})):
+    type==="billing"?billing?.documents.filter(entry=>entry.kind===(rule.trigger_type==="invoice_due"?"invoice":"quotation")).map(entry=>({id:entry.id,label:entry.subject})):options?.[type];
   const [state,setState]=useState<{busy:boolean;error?:string;result?:{matches:boolean;actions:Action[]}}>({busy:false});
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();const id=new FormData(event.currentTarget).get("entity");
@@ -123,7 +132,7 @@ function PreviewWorkflow({rule,shared,close}:{rule:Definition;shared:Shared;clos
     <form className="editor" onSubmit={submit}>
       <p className="muted">Check the rule against a current record. This test has no side effects.</p>
       <label>Record<select name="entity" disabled={!options} required><option value="">Choose a record</option>
-        {options?.[entity(rule.trigger_type)]?.map(option=><option value={option.id} key={option.id}>{option.label}</option>)}</select></label>
+        {choices?.map(option=><option value={option.id} key={option.id}>{option.label}</option>)}</select></label>
       {state.error&&<ErrorNotice message={state.error}/>}
       {state.result&&<div role="status">{state.result.matches?<ul>{state.result.actions.map((action,i)=><li key={i}>{labelFor(action.action)} · {action.value}</li>)}</ul>:"These conditions did not match."}</div>}
       <button className="button primary" disabled={state.busy||!options}>{state.busy?"Testing…":"Test rule"}</button>

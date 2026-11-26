@@ -63,3 +63,10 @@ After each milestone record UTC timestamp, branch/SHA, changed modules, commands
 - Verified 47 Python checks, one live cross-language integration scenario covering idempotent profile writes and a real workflow, 15 existing PostgreSQL checks, and the three existing browser journeys. A focused rerun of the new production-browser scenario passed. Its initial run identified ambiguous workflow control labels, which were corrected.
 - Created an empty Neon staging database and dedicated Vercel Hobby FastAPI project. API secrets are stored only in ignored local files and the isolated service configuration. The Clorix 1.0 database and live frontend were not migrated or redeployed.
 - Next phase starts with catalog, exact quotation/invoice totals and PDF output.
+
+## Clorix 2.0 Phase C checkpoint — 2026-11-26 17:29:35Z
+
+- Implemented catalog snapshots, quotation and invoice lifecycle, exact pricing, recorded payments, branded PDFs, support tickets and internal notes, calendar views, and monthly team targets. Added migrations 009–010 on local and staging databases. Extended diagnosis and rules for support, quotation and invoice events.
+- Passed 69 Python tests, one live Next.js-to-FastAPI scenario and six local production-browser tests, including the legacy suite and three upgrade journeys. Verified concurrent payment rejection, exact minor units, downloadable PDF content and document page renders.
+- The first hosted database handshake exposed a missing libpq CA source. The staged engine configuration now requests the system trust roots with full verification. Rebuild and hosted tests are next. The original production connection, alias and main branch remain unchanged.
+- Next phase covers restricted Gemini Copilot, productivity tools and release verification.

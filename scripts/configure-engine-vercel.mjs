@@ -9,10 +9,12 @@ if(dsn.pathname!=="/clorix_v2_staging" || dsn.username!=="clorix_stage_engine" |
    !dsn.hostname.includes("-pooler.") || process.env.CLORIX_ENGINE_SIGNING_KEY?.length<32) {
   throw Error("The dedicated pooled staging role is required.");
 }
+dsn.searchParams.set("sslmode","verify-full");
+dsn.searchParams.set("sslrootcert","system");
 for(const name of names) {
   if(!process.env[name])throw Error("Missing "+name);
   const args=["env","add",name,"production","--sensitive","--yes","--force","--non-interactive"];
-  const options={cwd:"backend",input:process.env[name],encoding:"utf8"};
+  const options={cwd:"backend",input:name==="CLORIX_ENGINE_DATABASE_URL"?dsn.href:process.env[name],encoding:"utf8"};
   const result=process.platform==="win32"
     ?spawnSync("cmd.exe",["/d","/c","vercel.cmd",...args],options)
     :spawnSync("vercel",args,options);

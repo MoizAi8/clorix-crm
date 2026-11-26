@@ -9,7 +9,7 @@ import type { Shared } from "@/components/workspace/contracts";
 
 type Factor={factor:string;weight:number;signal:number;explanation:string;missing:boolean};
 type Score={id:string;name:string;score:number;coverage:number;classification:string;recommended:string;factors:Factor[];
-  tags:string[];version:number;last?:string;priority?:string;source?:string;lifecycle?:string;renewal_date?:string;notes?:string};
+  tags:string[];version:number;open_tickets?:number;overdue_balance?:boolean;operations_penalty?:number;last?:string;priority?:string;source?:string;lifecycle?:string;renewal_date?:string;notes?:string};
 type Risk={id:string;title:string;stage:string;pipeline:string|null;stage_age:number;configured_amount_minor:string;
   expected_close_date:string|null;risk:number;classification:string;factors:{reason:string;points:number}[];probability:Record<string,number>};
 type Month={month:string;closed_won_minor:string;expected_minor:string;conservative_minor:string;best_case_minor:string;
@@ -32,15 +32,15 @@ export function useEngineMutation({workspace,notify,refresh}:Shared) {
   const [busy,setBusy]=useState(false);
   const pending=useRef<{fingerprint:string;key:string}|null>(null);
 
-  async function save(path:string, input:Record<string,unknown>, message:string, finish:()=>void=()=>{}) {
+  async function save<T=unknown>(path:string,input:Record<string,unknown>,message:string,finish:(data:T)=>void=()=>{}) {
     setError("");setBusy(true);
     try {
       const {key,...parameters}=input;
       const fingerprint=JSON.stringify([path,parameters]);
       if(pending.current?.fingerprint!==fingerprint)pending.current={fingerprint,key:String(key??crypto.randomUUID())};
-      await api("advanced/"+path,{method:"POST",body:{...parameters,key:pending.current.key},workspace:workspace.id});
+      const {data}=await api<T>("advanced/"+path,{method:"POST",body:{...parameters,key:pending.current.key},workspace:workspace.id});
       pending.current=null;
-      notify(message);finish();refresh();
+      notify(message);finish(data);refresh();
     } catch(caught) {
       setError(messageOf(caught));
     } finally {
@@ -78,6 +78,7 @@ function Scores({rows,tab,shared,edit}:{rows:Score[];tab:Tab;shared:Shared;edit:
       <p>{row.recommended} · {row.coverage}% input coverage</p>
       <small>Last contact {dateTime(row.last,shared.workspace.timezone)}{row.tags.length?" · "+row.tags.join(", "):""}
         {row.renewal_date?" · Renewal "+row.renewal_date:""}</small>
+      {!lead&&!!row.operations_penalty&&<p>{row.open_tickets} open support tickets{row.overdue_balance?" · Overdue invoice balance":""} · {row.operations_penalty} point adjustment</p>}
       <Description factors={row.factors}/>
     </article>)}</div>:<Empty title="No matching records"/>}
   </section>;

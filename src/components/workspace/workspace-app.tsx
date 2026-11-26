@@ -4,12 +4,14 @@ import { useEffect,useState,type FormEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  Activity,BarChart3,Bell,BriefcaseBusiness,Building2,Check,ClipboardCheck,Columns3,FlaskConical,LayoutDashboard,
+  Activity,BarChart3,Bell,BriefcaseBusiness,Building2,Check,CalendarDays,ClipboardCheck,Columns3,FlaskConical,Headphones,LayoutDashboard,ReceiptText,
   LogOut,Menu,Search,Settings as SettingsIcon,UserRoundPlus,Users,X,
 } from "lucide-react";
 import { api,messageOf } from "@/lib/client";
 import { entities,entityLabels,type Entity,type SearchResult } from "@/lib/crm";
 import { dateTime,Dialog,Empty,ErrorNotice,Loading,useLoad } from "@/components/ui/primitives";
+import { Billing } from "@/components/advanced/billing";
+import { SalesCalendar,Support,TeamPerformance } from "@/components/advanced/operations";
 import { NotificationCenter, Workflows } from "@/components/advanced/workflows";
 import { PipelineSettings,SalesIntelligence } from "@/components/advanced/sales";
 import { Overview } from "@/components/reports/overview";
@@ -60,7 +62,8 @@ function SearchDialog({workspace,onClose,navigate}:{workspace:string;onClose:()=
 
 const advancedNav=[
   ["intelligence","Sales intelligence",BarChart3],["pipeline-settings","Pipeline settings",Columns3],
-  ["workflows","Workflow studio",Activity],["notifications","Notifications",Bell],
+  ["workflows","Workflow studio",Activity],["notifications","Notifications",Bell],["billing","Billing",ReceiptText],
+  ["support","Support",Headphones],["calendar","Calendar",CalendarDays],["team-performance","Team performance",Users],
 ] as const;
 
 export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
@@ -118,10 +121,10 @@ export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
       <Link className="brand" href="/" aria-label="Clorix home"><span className="brand-mark"/><span>Clorix<span>.</span></span></Link>
       <button className="icon-button close-nav" aria-label="Close navigation" onClick={()=>setMenu(false)}><X size={20}/></button>
       <div className="side-workspace">{workspace?.name??"Workspace"}</div>
-      <nav aria-label="Workspace navigation">{[...nav,...(advanced?advancedNav:[])].map(([key,label,Icon])=><button type="button" key={key}
+      <nav aria-label="Workspace navigation">{[...nav,...(advanced?advancedNav:[])].map(([key,label,Icon])=><div className="nav-item" key={key}>{key==="intelligence"&&<span className="nav-group-label">Intelligence and operations</span>}<button type="button" key={key}
         aria-current={(view===key||(view==="follow-up"&&key==="tasks"))?"page":undefined}
         className={view===key||(view==="follow-up"&&key==="tasks")?"active":undefined} onClick={()=>navigate(key)}><Icon size={18}/><span>{label}</span>
-      </button>)}</nav>
+      </button></div>)}</nav>
       <div className="side-footer"><div className="avatar">{data?.name?.split(" ").slice(0,2).map(part=>part[0]).join("")??"C"}</div>
         <div><strong>{data?.name??"Clorix"}</strong><small>{workspace?workspace.role==="owner"?"Workspace owner":"Workspace member":""}</small></div>
         <button aria-label="Sign out" title="Sign out" className="icon-button" disabled={leaving} onClick={logout}><LogOut size={18}/></button>
@@ -149,6 +152,10 @@ export function WorkspaceApp({advanced=false}:{advanced?:boolean}) {
           view==="pipeline-settings"?<PipelineSettings key={shared.workspace.id} {...shared}/>:
           view==="workflows"?<Workflows key={shared.workspace.id} {...shared}/>:
           view==="notifications"?<NotificationCenter key={shared.workspace.id} {...shared}/>:
+          view==="billing"?<Billing key={shared.workspace.id} {...shared} recordId={id??undefined}/>:
+          view==="support"?<Support key={shared.workspace.id+(id??"")} {...shared} recordId={id??undefined}/>:
+          view==="calendar"?<SalesCalendar key={shared.workspace.id} {...shared}/>:
+          view==="team-performance"?<TeamPerformance key={shared.workspace.id} {...shared}/>:
           view==="settings"?<Settings key={shared.workspace.id} {...shared}/>:
           entity&&id?<RecordDetail key={shared.workspace.id+entity+id} {...shared} entity={entity} id={id}/>:
           entity?<RecordList key={shared.workspace.id+entity} {...shared} entity={entity} create={create}/>:null}

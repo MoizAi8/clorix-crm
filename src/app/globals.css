@@ -389,3 +389,28 @@ td { overflow-wrap: anywhere; }
 .editor fieldset { border:1px solid var(--clorix-border); border-radius:8px; padding:12px; min-width:0; }
 .editor legend { font-weight:750; }
 .stage-editor-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(90px,110px) 38px 38px; gap:7px; align-items:end; }
+.billing-line-editor { border:1px solid var(--clorix-border); border-radius:8px; padding:10px; min-width:0; }
+.billing-line-editor strong { margin-right:auto; }
+.billing-totals { max-width:350px; margin:15px 0 14px auto; }
+.billing-totals dd { text-align:right; font-weight:750; }
+.billing-copy { white-space:pre-wrap; overflow-wrap:anywhere; margin-bottom:14px; }
+@media print {
+  .app-shell:has(.billing-document) { display:block; }
+  .app-shell:has(.billing-document) .sidebar, .app-shell:has(.billing-document) .topbar,
+  .app-shell:has(.billing-document) .workspace-content > :not(.billing-document) { display:none; }
+  .app-shell:has(.billing-document) .workspace-content { padding:0; }
+  .billing-document { border:0; box-shadow:none; }
+  .billing-document .table-wrap { overflow:visible; }
+  .billing-document tr { break-inside:avoid; }
+}
+.sidebar nav .nav-item > button { width:100%; }
+.nav-group-label { display:block; margin:13px 8px 5px; color:var(--clorix-dark-muted); font-size:.76rem; font-weight:700; }
+.calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); border-top:1px solid var(--clorix-border); border-left:1px solid var(--clorix-border); }
+.calendar-grid > * { border-right:1px solid var(--clorix-border); border-bottom:1px solid var(--clorix-border); min-width:0; }
+.calendar-weekday { padding:6px 3px; text-align:center; font-size:.76rem; background:var(--clorix-canvas); }
+.calendar-day { padding:5px; min-height:75px; font-size:.78rem; overflow:hidden; }
+.calendar-today { background:var(--clorix-mint-wash); }
+.calendar-entry { display:block; border:0; border-radius:5px; background:#e5f4eb; color:var(--clorix-forest); text-overflow:ellipsis; overflow:hidden;
+  width:100%; white-space:nowrap; padding:4px; font-size:.75rem; text-align:left; margin-top:3px; }
+.calendar-entry:hover { background:#c8e9db; }
+@media(max-width:660px) { .calendar-day { padding:3px; min-height:58px; } }

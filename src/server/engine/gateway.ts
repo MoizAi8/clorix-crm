@@ -22,6 +22,22 @@ const routes:Record<string,Operation>={
   "POST workflow-evaluate":{method:"POST",path:"/v2/workflow-evaluate",scope:"workflow:evaluate"},
   "POST workflow-retry":{method:"POST",path:"/v2/workflow-retry",scope:"workflow:retry"},
   "POST workflow-test":{method:"POST",path:"/v2/workflow-test",scope:"workflow:test"},
+  "GET billing":{method:"GET",path:"/v2/billing",scope:"billing:read"},
+  "POST billing-detail":{method:"POST",path:"/v2/billing-detail",scope:"billing:detail"},
+  "POST catalog":{method:"POST",path:"/v2/catalog",scope:"catalog:write"},
+  "POST billing-document":{method:"POST",path:"/v2/billing-document",scope:"billing:write"},
+  "POST billing-status":{method:"POST",path:"/v2/billing-status",scope:"billing:status"},
+  "POST billing-generate":{method:"POST",path:"/v2/billing-generate",scope:"billing:generate"},
+  "POST billing-payment":{method:"POST",path:"/v2/billing-payment",scope:"billing:payment"},
+  "POST billing-pdf":{method:"POST",path:"/v2/billing-pdf",scope:"billing:pdf",binary:true},
+  "GET support":{method:"GET",path:"/v2/support",scope:"support:read"},
+  "POST support":{method:"POST",path:"/v2/support",scope:"support:write"},
+  "POST support-detail":{method:"POST",path:"/v2/support-detail",scope:"support:detail"},
+  "POST support-note":{method:"POST",path:"/v2/support-note",scope:"support:note"},
+  "POST calendar":{method:"POST",path:"/v2/calendar",scope:"calendar:read"},
+  "POST calendar-event":{method:"POST",path:"/v2/calendar-event",scope:"calendar:write"},
+  "GET team-performance":{method:"GET",path:"/v2/team-performance",scope:"team-performance:read"},
+  "POST team-member-target":{method:"POST",path:"/v2/team-member-target",scope:"team-target:write"},
   "GET notifications":{method:"GET",path:"/v2/notifications",scope:"notification:read"},
   "POST notification-read":{method:"POST",path:"/v2/notification-read",scope:"notification:write"},
   "POST notification-preferences":{method:"POST",path:"/v2/notification-preferences",scope:"notification:preferences"},
@@ -55,6 +71,7 @@ export async function forward(request:Request,segments:string[]) {
   const principal=await withWorkspace(request,async ({user,workspace})=>({actor:user.id,workspace:workspace.id}));
   await quota(request,"engine-user",120,60,principal.actor);
   if (writes) await quota(request,"engine-write",40,60,principal.actor);
+  if (operation.binary) await quota(request,"engine-pdf",20,3600,principal.actor);
   if (operation.scope==="workflow:evaluate") await quota(request,"engine-evaluate",6,60,principal.workspace);
   const base=new URL(process.env.CLORIX_ENGINE_URL!);
   if ((base.protocol!=="https:" && !(base.protocol==="http:"&&["localhost","127.0.0.1"].includes(base.hostname))) ||
@@ -85,8 +102,10 @@ export async function forward(request:Request,segments:string[]) {
   if (!type?.startsWith(operation.binary?"application/pdf":"application/json")) {
     throw new AppError(503,"engine_response","Advanced services returned an unexpected response.");
   }
+  const disposition=response.headers.get("Content-Disposition");
+  const attachment=disposition&&/^attachment; filename="clorix-(q|inv)-[0-9]{5,10}\\.pdf"$/.test(disposition)?disposition:'attachment; filename="clorix-document.pdf"';
   return new Response(response.body,{status:response.status,headers:{
     "Content-Type":type,"Cache-Control":"private, no-store","X-Request-Id":requestId,
-    ...(operation.binary?{"Content-Disposition":'attachment; filename="clorix-document.pdf"'}:{}),
+    ...(operation.binary?{"Content-Disposition":attachment}:{}),
   }});
 }

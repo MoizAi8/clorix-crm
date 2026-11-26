@@ -9,7 +9,9 @@ from fastapi.responses import JSONResponse
 from psycopg import Error as DatabaseError
 from psycopg_pool import PoolTimeout
 
+from clorix.billing_api import router as billing_router
 from clorix.db import Database
+from clorix.operations_api import router as operations_router
 from clorix.sales_api import router as sales_router
 from clorix.security import Call, ServiceError, authorize, request_id
 from clorix.workflow_api import router as workflow_router
@@ -90,6 +92,8 @@ def create_app(dsn: str | None = None, signing_key: str | None = None) -> FastAP
 
     app.include_router(sales_router)
     app.include_router(workflow_router)
+    app.include_router(billing_router)
+    app.include_router(operations_router)
     return app
 
 

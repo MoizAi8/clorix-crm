@@ -8,11 +8,13 @@ dependencies = [
     "psycopg[binary,pool]>=3.3,<4",
     "pyjwt>=2.12,<3",
     "tzdata>=2025.2",
+    "reportlab>=4.4,<5",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28,<1",
+    "pypdf>=6,<8",
     "pytest>=9,<10",
     "ruff>=0.15,<1",
     "uvicorn>=0.40,<1",

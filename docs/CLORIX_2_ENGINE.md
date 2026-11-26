@@ -37,3 +37,11 @@ The Python health endpoint is `GET /health`. The authenticated tenant path is ex
 - Booked value includes current closed-won deals. Growth compares equivalent six-month buckets in the workspace timezone and omits a rate when the previous denominator is zero. Source conversion uses the cohort of leads created within the displayed period. Sales targets and projections use one workspace currency.
 - Pipeline settings preserve stage IDs and immutable event snapshots, including names and probability at the time of transition. Existing default pipeline and saved deal relationships remain usable.
 - Workflow events are written in the same transaction as a matching CRM change. An owner runs bounded evaluation deliberately. Time-based evaluations run at that point. Each run records completed, failed or skipped status. Workflow actions use savepoints, bounded retries, recursion suppression, and durable request and event uniqueness. Inbox delivery is internal to the application.
+
+## Billing and customer operations
+
+Line amounts use integer minor units and quantity measured in thousandths. Clorix rounds the unit-price product, the discount, and the tax on the discounted line half-up to a minor unit. The document total is the sum of its line totals. Issued invoices and accepted quotations preserve line items and price snapshots. A recorded payment reduces the outstanding invoice balance and never exceeds it.
+
+Quote and invoice numbers are unique within a workspace and document type. An accepted quote or eligible won deal can create one linked invoice, preserving the relationship under concurrent requests. Invoice statuses distinguish issued, unpaid, partial, overdue and paid. The branded PDF and browser print view use recorded amounts. PDFs support the standard font's Latin repertoire. Payments, quotations and resolution messages are recorded inside the CRM.
+
+Support tracks the first recorded team action and current resolution time. Internal notes are workspace-scoped. Customer health subtracts five points per open ticket up to 20 and ten points for any overdue outstanding invoice. Calendar ranges use the workspace IANA time zone and an exclusive local end date. Team performance reports booked value, lead conversion and workload by recorded owner, plus individual monthly targets.

@@ -13,3 +13,9 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON automation_events,in_app_notifications TO c
 GRANT UPDATE(owner_member_id,updated_at,version) ON leads,deals TO clorix_engine;
 GRANT INSERT ON tasks,activities TO clorix_engine;
 GRANT EXECUTE ON FUNCTION clorix_access.record_limit() TO clorix_engine;
+GRANT SELECT,INSERT,UPDATE ON catalog_items,billing_documents TO clorix_engine;
+GRANT SELECT,INSERT,DELETE ON billing_lines TO clorix_engine;
+GRANT SELECT,INSERT ON billing_revisions,recorded_payments TO clorix_engine;
+GRANT SELECT,INSERT,UPDATE ON support_tickets,calendar_events,member_sales_targets TO clorix_engine;
+GRANT SELECT,INSERT ON support_history TO clorix_engine;
+GRANT EXECUTE ON FUNCTION clorix_access.team_directory() TO clorix_engine;

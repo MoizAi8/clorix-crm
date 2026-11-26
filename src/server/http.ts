@@ -16,6 +16,9 @@ export function failed(error: unknown) {
   const databaseCode = (error as { code?: string } | null)?.code;
   if (databaseCode === "23503") error = new AppError(422, "relationship", "A selected record is unavailable in this workspace.");
   if (databaseCode === "23505") error = new AppError(409, "conflict", "A matching record already exists.");
+  if (databaseCode === "P0001" && (error as Error).message === "commercial_currency") {
+    error = new AppError(409,"currency_locked","Currency is locked after creating catalog items, sales targets or billing documents.");
+  }
   if (databaseCode === "P0001" && (error as Error).message === "workflow_capacity") {
     error = new AppError(429,"workflow_capacity","Evaluate pending workflows before adding more events.",60);
   }
