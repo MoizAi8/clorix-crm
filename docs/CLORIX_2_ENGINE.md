@@ -1,6 +1,6 @@
 # Clorix 2.0 engineering track
 
-The production release remains on the verified Clorix 1.0 commit while the upgrade is exercised on an isolated database. Upgrade work is tracked on the `clorix-2.0` branch.
+Clorix 2.0 runs at the original Clorix frontend URL. The production FastAPI service uses a restricted role in the existing Neon production database. A separate staging frontend, engine and database remain available for acceptance testing. The upgrade history is on the `clorix-2.0` branch.
 
 ## Service boundaries
 

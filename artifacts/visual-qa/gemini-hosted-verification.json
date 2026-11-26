@@ -1,0 +1,15 @@
+{
+  "engineCommit": "4c11caff307854402e540d051a80c1efc09f0826",
+  "model": "gemini-3.5-flash-lite",
+  "fixture": "paper",
+  "action": "meeting",
+  "realGemini": true,
+  "latencyMs": 2165,
+  "signedReviewer": true,
+  "persistedResponse": true,
+  "idempotentReplay": true,
+  "historyDeleted": true,
+  "unauthorizedDenied": true,
+  "unsupportedRegionDenied": true,
+  "responseDigest": "bd36323405d2108f080bd1e5ac2e9efb0e483d9c7a415b2b0be3173c97983721"
+}

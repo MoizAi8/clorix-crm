@@ -1,0 +1,14 @@
+{
+  "commit": "4c11caff307854402e540d051a80c1efc09f0826",
+  "origin": "https://clorix-crm.vercel.app",
+  "engine": "https://clorix-engine-live.vercel.app",
+  "schemaMigrations": 13,
+  "productionSandbox": true,
+  "secureCookies": true,
+  "realPythonAnalytics": true,
+  "sandboxGeminiDenied": true,
+  "desktopAndMobile": true,
+  "liveReviewerInference": true,
+  "reviewerLatencyMs": 3121,
+  "advancedRequestMs": 1104
+}
