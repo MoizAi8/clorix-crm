@@ -8,6 +8,6 @@
  --background:var(--clorix-canvas); --surface:var(--clorix-white); --foreground:var(--clorix-navy);
  --primary:var(--clorix-lime); --primary-foreground:var(--clorix-navy);
  --radius-card:12px; --radius-control:8px; --sidebar-width:240px;
- --font-heading:Manrope,system-ui,sans-serif; --font-ui:Inter,system-ui,sans-serif;
+ --font-heading:"Manrope Variable",system-ui,sans-serif; --font-ui:"Inter Variable",system-ui,sans-serif;
 }
 .marketing-dark { --background:var(--clorix-navy); --foreground:var(--clorix-white); --surface:var(--clorix-sidebar); }

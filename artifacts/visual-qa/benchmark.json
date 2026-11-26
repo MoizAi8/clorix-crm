@@ -1,0 +1,31 @@
+{
+  "environment": {
+    "platform": "win32",
+    "node": "v24.15.0",
+    "postgres": "17.10",
+    "mode": "Local authenticated route handlers, including pooled PostgreSQL; HTTP and hosted cold starts excluded",
+    "concurrency": 1
+  },
+  "dataset": {
+    "leads": 1000,
+    "contacts": 500,
+    "companies": 200,
+    "deals": 500,
+    "tasks": 500,
+    "activities": 500
+  },
+  "milliseconds": {
+    "firstSearch": 39.3,
+    "firstDashboard": 58.1,
+    "warmSearch": {
+      "n": 50,
+      "p50": 8.2,
+      "p95": 10.3
+    },
+    "warmDashboard": {
+      "n": 50,
+      "p50": 47.7,
+      "p95": 55.7
+    }
+  }
+}

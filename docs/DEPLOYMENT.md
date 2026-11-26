@@ -13,3 +13,13 @@ Fresh browser: public landing, sandbox create, core lead→deal→won workflow, 
 
 ## 5. Maintenance
 Document owner CLI for creating private evaluation invite, listing/cleaning expired sandbox tenants with dry-run, rotating secrets, backup/restore and redeploy. No automatic commercial use. Review quotas and provider policy before future upgrades. If repo name unavailable or trademark concern, stop before public brand changes; user locked Clorix and no clearance granted.
+
+## Implemented operator commands
+
+- `npm run db:migrate` applies checksummed SQL files with a database advisory lock. The first release uses additive migrations. Schema changes with data risk require a documented Neon restore point or independently tested backup before approval.
+- `npm run db:admin -- grant` assigns the restricted runtime privileges. `node --env-file=artifacts/private/release.env scripts/verify-runtime.mjs` checks production without printing credentials.
+- `npm run db:admin -- sandbox-policy` applies the database-backed TTL, active-workspace and record caps from the admin environment. The public app defaults to 24 hours, 30 active workspaces, 500 records per workspace, 3 starts per network per day and 90 starts globally per day.
+- `npm run db:admin -- cleanup` lists a count of eligible expired sandboxes. Add `--apply` to delete a bounded batch. Sandbox provisioning also attempts bounded cleanup.
+- `npm run db:admin -- invite fictional-user@clorix.example "Evaluation workspace"` writes a one-time account link to the ignored private directory.
+- Upload only the restricted pooled connection and app configuration to Vercel Production. Keep `DIRECT_DATABASE_URL` local. Git-triggered Vercel deploys are disabled. Deploy a verified commit explicitly and record its SHA before testing the production domain.
+- Recovery uses the previous Vercel deployment where compatible with the applied schema. Keep the migration lock and checksums intact. For a schema incompatibility, use tested forward SQL or restore the dedicated Neon database to a verified restore point before promoting the corresponding bundle.

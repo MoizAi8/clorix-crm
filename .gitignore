@@ -19,3 +19,7 @@ test-results/
 Thumbs.db
 *.tsbuildinfo
 artifacts/private/
+/public/brand/references/
+.vercel
+/design/references/
+next-env.d.ts

@@ -1,0 +1,7 @@
+**/.env*
+**/*.log
+artifacts
+design/references
+public/brand/references
+tests
+.git

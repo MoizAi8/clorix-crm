@@ -1,0 +1,60 @@
+name: Clorix checks
+
+on:
+  push:
+    paths-ignore:
+      - 'artifacts/**'
+      - 'docs/**'
+      - 'PROGRESS.md'
+      - 'README.md'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: clorix_admin
+          POSTGRES_PASSWORD: ci_fixture_admin
+          POSTGRES_DB: clorix_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clorix_admin -d clorix_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DIRECT_DATABASE_URL: postgresql://clorix_admin:ci_fixture_admin@127.0.0.1:5432/clorix_test
+      DATABASE_URL: postgresql://clorix_runtime:ci_fixture_runtime@127.0.0.1:5432/clorix_test
+      TEST_DATABASE_URL: postgresql://clorix_runtime:ci_fixture_runtime@127.0.0.1:5432/clorix_test
+      AUTH_SECRET: ci-auth-fixture-for-isolated-postgresql-only-2026
+      DEMO_RATE_LIMIT_SECRET: ci-limit-fixture-for-isolated-postgresql-only-2026
+      APP_URL: http://localhost:3000
+      SANDBOX_IP_DAILY_LIMIT: 20
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test
+      - run: psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE ROLE clorix_runtime LOGIN NOBYPASSRLS PASSWORD 'ci_fixture_runtime';"
+      - run: npm run db:migrate && npm run db:admin -- grant && npm run test:db
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: |
+          npm start > /tmp/clorix-next.log 2>&1 &
+          for i in {1..30}; do
+            if curl --fail --silent http://localhost:3000/api/v1/health; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:3000/api/v1/health
+          node scripts/browser-test.mjs

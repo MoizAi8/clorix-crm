@@ -1,9 +1,9 @@
-# Planned exclusions and release record
-This file is an initial scope statement, not evidence of a deployed product. At release replace with actual known limitations and unresolved issues.
+# Clorix evaluation scope
 
-- Personal non-commercial synthetic portfolio evaluation; no enterprise/commercial SLA, billing or real client operations.
-- No actual email/SMS/campaign delivery, integrations, enrichment scraping, calendar sync, enterprise SSO, multi-currency FX, historical point-in-time accounting, mobile native app or advanced automation.
-- Sandbox session expires; no recovery of anonymous session after cookie loss; data synthetic only, quotas may deny provisioning. Private accounts use configured access policy; public sandbox needs no invite. Team invites copied manually. Password recovery/email verification only if genuinely implemented; otherwise documented.
-- Optional Gemini lab disabled by default and not needed for core; no real CRM data to unpaid external AI.
-- Free hosting may cold-start or hit quotas; no load/scale guarantee. Brand name not formally trademark/domain cleared; public source license owner decision pending.
-- Actual bug list, tested environments, performance, deployment URLs and verdict pending implementation.
+- Personal, non-commercial use with fictional records. The public sandbox expires after 24 hours. Anonymous sessions cannot be recovered after cookie loss or logout. Free providers can throttle or cold-start.
+- Account registration uses an operator-issued email-scoped invitation. Team links require an existing private Clorix account. Email delivery and password recovery are outside this release.
+- One fixed currency per workspace after the first deal. Reports describe current deal state, not accounting revenue or point-in-time history. Activity logs are append-only.
+- Follow-up and forecasts use deterministic rules. The optional Gemini sample lab, custom stages, external sending, FX, billing, integrations, advanced automation, and native mobile apps are outside this release.
+- Authentication uses Better Auth's PostgreSQL adapter. Its auth tables have separate runtime grants because the adapter validates sessions before tenant context is established. CRM tables enforce membership and tenant scope with forced RLS. The app relies on parameterized server-owned queries and protecting the runtime connection.
+- The pipeline displays up to 1,000 deals and the relationship picker up to 1,000 active records per type. Lists use cursor pagination. Bulk CSV limits and sandbox record limits are documented separately.
+- No trademark clearance or Clorix source license approval has been recorded. Passing the portfolio checks does not establish commercial or enterprise readiness.

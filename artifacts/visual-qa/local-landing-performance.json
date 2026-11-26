@@ -1,0 +1,22 @@
+{
+  "mode": "Chrome desktop process with 390×844 mobile emulation, unthrottled",
+  "url": "http://localhost:3000",
+  "firstNavigation": {
+    "lcpMs": 352,
+    "cls": 0
+  },
+  "warmNavigations": [
+    {
+      "lcpMs": 56,
+      "cls": 0
+    },
+    {
+      "lcpMs": 68,
+      "cls": 0
+    },
+    {
+      "lcpMs": 64,
+      "cls": 0
+    }
+  ]
+}
