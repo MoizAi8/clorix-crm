@@ -48,6 +48,21 @@ jobs:
       - run: npm run lint && npm run typecheck && npm test
       - run: psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE ROLE clorix_runtime LOGIN NOBYPASSRLS PASSWORD 'ci_fixture_runtime';"
       - run: npm run db:migrate && npm run db:admin -- grant && npm run test:db
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --locked --project backend
+      - run: uv run --project backend ruff check backend
+      - name: Verify FastAPI security and cross-language integration
+        env:
+          CLORIX_ENGINE_DATABASE_URL: postgresql://clorix_engine:ci_fixture_engine@127.0.0.1:5432/clorix_test
+          CLORIX_ENGINE_URL: http://127.0.0.1:8812/
+          CLORIX_ENGINE_SIGNING_KEY: ci-engine-fixture-for-isolated-postgresql-only-2026
+        run: |
+          psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE ROLE clorix_engine LOGIN NOBYPASSRLS PASSWORD 'ci_fixture_engine';"
+          psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema/engine-grants.sql
+          node scripts/test-engine.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: |

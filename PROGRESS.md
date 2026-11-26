@@ -49,3 +49,10 @@ After each milestone record UTC timestamp, branch/SHA, changed modules, commands
 - Warm local p95: search 10.3 ms and dashboard 55.7 ms, 50 authenticated samples each. Final hosted mobile-emulated landing LCP was 796 ms on first navigation and 124–148 ms on three warm navigations. CLS was 0 in all four. Results are for the measured environment.
 - Hosted browser screenshots and JSON evidence are in artifacts/visual-qa. Credentials, account invites and raw reports remain in ignored local files. Optional Gemini is deferred. See docs/KNOWN_LIMITATIONS.md for the release scope.
 - Verified cleanup of the two owned hosted sandbox fixtures and one private fixture. Local Clorix test processes were stopped, with the database files retained.
+
+## Clorix 2.0 Phase A — 2026-11-26 16:47:37Z
+
+- Working branch clorix-2.0 starts from release evidence commit 9948d6e. Production remains on 528b097.
+- Added the locked Python 3.12 FastAPI service, short-lived action-bound gateway authorization, Psycopg tenant-scoped transactions and a distinct read-only engine role. Verified role restrictions and denial after membership revocation.
+- Passed 19 Python tests, one live Next.js-to-FastAPI test, 39 existing unit tests and 15 existing PostgreSQL checks. The ordinary TypeScript regression command skips the dedicated engine test, which passed through its separate live runner. FastAPI's upstream test client emits an HTTPX deprecation warning.
+- Local imports lint was corrected. Added isolated CI wiring. No production database changes or promotion. Next scope is the Phase B sales and workflow modules.
